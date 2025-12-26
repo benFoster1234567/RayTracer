@@ -25,10 +25,15 @@ struct Sphere
 {
 
 	Tuples::Tuple position{};
+	Matrix4 transform{};
 	float radius{};
 
 	Sphere();
 	Sphere(Tuples::Tuple position, float radius);
+	inline void setTransform(Matrix4 transform_)
+	{
+		transform = transform_;
+	}
 
 };
 

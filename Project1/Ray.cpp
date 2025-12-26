@@ -9,10 +9,11 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 {}
 
 Sphere::Sphere()
-	: position{Tuples::Point(10,10,0)}, radius(1.0f)
+	: position{Tuples::Point(10,10,0)}, radius(1.0f), transform{ Matrix4::identity()}
 {}
 
 Sphere::Sphere(Tuples::Tuple position, float radius)
+	: position{position}, radius(radius), transform{Matrix4::identity()}
 {}
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list)
@@ -25,11 +26,21 @@ std::vector<Intersection> intersections(std::initializer_list<Intersection> list
 	return v;
 }
 
+Ray transform(const Ray& ray, const Matrix4& matrix)
+{
+	
+	Ray newRay{ matrix * ray.origin, matrix * ray.direction };
+
+	return newRay;
+
+}
+
 const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray)
 {
-	Tuples::Tuple sphereToRay{ ray.origin - Tuples::Point(0,0,0) };
-	float a = Tuples::dot(ray.direction, ray.direction);
-	float b = 2 * Tuples::dot(ray.direction, sphereToRay);
+	Ray ray2 = transform(ray, sphere.transform.inverse());
+	Tuples::Tuple sphereToRay{ ray2.origin - Tuples::Point(0,0,0) };
+	float a = Tuples::dot(ray2.direction, ray2.direction);
+	float b = 2 * Tuples::dot(ray2.direction, sphereToRay);
 	float c = Tuples::dot(sphereToRay, sphereToRay) - 1;
 	float discriminant = (b * b) - (4 * a * c);
 	

@@ -201,7 +201,7 @@ Matrix3 Matrix4::submatrix(size_t row, size_t col) const
 	return result;
 }
 
-//helper function for converting degrees to radians for angle functions.
+//helper function for converting degrees to radians.
 float radians(float degrees)
 {
 	return degrees * static_cast<float>(std::numbers::pi) / 180.0f;

@@ -114,6 +114,8 @@ public:
 			(*this)(0, 1) * (*this).cofactor(0, 1) +
 			(*this)(0, 2) * (*this).cofactor(0, 2);
 	}
+
+
 };
 
 class Matrix4 : public MatrixBase
@@ -202,6 +204,18 @@ public:
 	static Matrix4 rotationY(float radians);
 	static Matrix4 rotationZ(float radians);
 	static Matrix4 shearing(float xy, float xz, float yx, float yz, float zx, float zy);
+
+
 };
+
+//inline Tuples::Tuple operator*(const Matrix4& m, const Tuples::Tuple& t)
+//{
+//	return Tuples::Tuple{
+//		(m(0,0) * t.x) + (m(0,1) * t.y) + (m(0,2) * t.z) + (m(0,3) * t.w),
+//		(m(1,0) * t.x) + (m(1,1) * t.y) + (m(1,2) * t.z) + (m(1,3) * t.w),
+//		(m(2,0) * t.x) + (m(2,1) * t.y) + (m(2,2) * t.z) + (m(2,3) * t.w),
+//		(m(3,0) * t.x) + (m(3,1) * t.y) + (m(3,2) * t.z) + (m(3,3) * t.w)
+//	};
+//}
 
 float radians(float degrees);

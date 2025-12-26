@@ -1075,3 +1075,67 @@ TEST_CASE("Introducing a function called hit. Returning the hit from a collectio
 		REQUIRE((i.value().t) == i4.t);
 	}
 }
+
+TEST_CASE("Object transformations")
+{
+	SECTION("Translating a ray", "[Ray]")
+	{
+		Ray r{ Tuples::Point(1,2,3), Tuples::Vector(0,1,0) };
+		Matrix4 m = Matrix4::translation(3, 4, 5);
+		Ray r2 = transform(r, m);
+		Tuples::Tuple resultP = Tuples::Point(4, 6, 8);
+		Tuples::Tuple resultD = Tuples::Vector(0, 1, 0);
+		REQUIRE(resultP == r2.origin);
+		REQUIRE(resultD == r2.direction);
+	}
+
+	SECTION("Scaling a ray", "[Ray]")
+	{
+		Ray r{ Tuples::Point(1,2,3), Tuples::Vector(0,1,0) };
+		Matrix4 m = Matrix4::scale(2, 3, 4);
+		Ray r2 = transform(r, m);
+		Tuples::Tuple resultP = Tuples::Point(2, 6, 12);
+		Tuples::Tuple resultD = Tuples::Vector(0, 3, 0);
+		REQUIRE(resultP == r2.origin);
+		REQUIRE(resultD == r2.direction);
+	}
+
+	SECTION("A sphere's default transformation", "[Ray]")
+	{
+		Sphere s{};
+		REQUIRE(s.transform == Matrix4::identity());
+
+
+	}
+
+	SECTION("Changing a ray's transformation", "[Ray]")
+	{
+		Sphere s{};
+		Matrix4 t{ Matrix4::translation(2,3,4) };
+		s.setTransform(t);
+		REQUIRE(s.transform == t);
+
+
+	}
+
+	SECTION("Intersectiong a scaled sphere with a ray.", "[Ray]")
+	{
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Sphere s{};
+		s.setTransform(Matrix4::scale(2, 2, 2));
+		auto xs = intersect(s, r);
+		REQUIRE(xs.size() == 2);
+		CHECK(xs[0].t == 3);
+		CHECK(xs[1].t == 7);
+	}
+
+	SECTION("Intersectiong a translated sphere with a ray", "[Ray]")
+	{
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Sphere s{};
+		s.setTransform(Matrix4::translation(5, 0, 0));
+		auto xs = intersect(s, r);
+		REQUIRE(xs.size() == 0);
+
+	}
+}
