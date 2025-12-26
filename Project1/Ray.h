@@ -45,7 +45,7 @@ struct Intersection
 };
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list);
-
+Ray transform(const Ray& ray, const Matrix4& matrix);
 
 const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray);
 std::optional<Intersection> hit(const std::vector<Intersection>& ints);

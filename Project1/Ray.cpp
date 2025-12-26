@@ -1,6 +1,5 @@
 #include "Ray.h"
 
-
 Ray::Ray()
 	: origin{}, direction{}
 {}
@@ -46,18 +45,6 @@ const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray)
 
 std::optional<Intersection> hit(const std::vector<Intersection>& ints)
 {
-	//auto it = std::partition(ints.begin(), ints.end(),
-	//	[](const Intersection& i) { return i.t >= 0; });
-
-	//std::sort(ints.begin(), it, [](const Intersection& a, const Intersection& b) {
-	//	return a.t < b.t;
-	//	});
-
-	//if (it != ints.begin())
-	//{
-	//	return std::ref(ints[0]);
-	//}
-	//return std::nullopt;
 	std::optional<Intersection> result{std::nullopt};
 	float minT = std::numeric_limits<float>::infinity();
 	for (const auto& i : ints)
