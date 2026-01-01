@@ -103,7 +103,6 @@ int main()
 	//sillouetteTest();
 	timeTest();
 
-	return 0;
 }
 
 #endif
