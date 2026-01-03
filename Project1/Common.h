@@ -5,4 +5,4 @@
 #include <cmath>
 #include<vector>
 
-const float EPSILON = 0.00001f;
+const float EPSILON = 0.0001f;

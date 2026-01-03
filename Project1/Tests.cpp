@@ -1139,3 +1139,224 @@ TEST_CASE("Object transformations")
 
 	}
 }
+
+TEST_CASE("Computing normals")
+{
+	SECTION("The normal on a sphere at a point on the x axis", "[Sphere]")
+	{
+		Sphere s{};
+		auto n = s.normalAt(Tuples::Point(1, 0, 0));
+		REQUIRE(n == Tuples::Vector(1, 0, 0));
+	}
+
+	SECTION("The normal on a sphere at a point on the y axis", "[Sphere]")
+	{
+		Sphere s{};
+		auto n = s.normalAt(Tuples::Point(0, 0, 1));
+		REQUIRE(n == Tuples::Vector(0, 0, 1));
+	}
+
+	SECTION("The normal on a sphere at a point on the z axis", "[Sphere]")
+	{
+		Sphere s{};
+		auto n = s.normalAt(Tuples::Point(0, 0, 1));
+		REQUIRE(n == Tuples::Vector(0, 0, 1));
+	}
+
+	SECTION("The normal on a sphere at a nonaxial point", "[Sphere]")
+	{
+		Sphere s{};
+		auto n = s.normalAt(Tuples::Point(std::sqrt(3) / 3, std::sqrt(3) / 3, std::sqrt(3) / 3));
+		REQUIRE(n == normalize(n));
+	}
+
+	SECTION("Comupting normals on a translated Sphere", "[Sphere]")
+	{
+		Sphere s{};
+		s.setTransform(Matrix4::translation(0, 1, 0));
+		auto n = s.normalAt(Tuples::Point(0, 1.70711, -0.70711));
+		REQUIRE(n == Tuples::Vector(0, 0.70711, -0.70711));
+	}
+
+	SECTION("Computing normals on a transformed sphere", "[Sphere]")
+	{
+		Sphere s{};
+		Matrix4 m{ Matrix4::scale(1,0.5,1) * Matrix4::rotationZ(std::numbers::pi/5) };
+		s.setTransform(m);
+		auto n = s.normalAt(Tuples::Point(0, std::sqrt(2) / 2, -std::sqrt(2) / 2));
+		REQUIRE(n == Tuples::Vector(0, 0.97014, -0.24254));
+	}
+}
+
+TEST_CASE("Reflecting vectors", "[Sphere]")
+{
+	SECTION("Reflecting a vector approaching at 45 degrees.", "[Sphere]")
+	{
+		auto v = Tuples::Vector(1, -1, 0);
+		auto n = Tuples::Vector(0, 1, 0);
+		auto r = reflect(v, n);
+		REQUIRE(r == Tuples::Vector(1, 1, 0));
+	}
+
+	SECTION("Reflecting a vector off a slanted surface", "[Sphere]")
+	{
+		auto v = Tuples::Vector(0, -1, 0);
+		auto n = Tuples::Vector(std::sqrt(2) / 2, std::sqrt(2) / 2, 0);
+		auto r = reflect(v, n);
+		REQUIRE(r == Tuples::Vector(1, 0, 0));
+	}
+}
+
+TEST_CASE("Phong Reflection Model", "[Ray]")
+{
+	SECTION("A point light has a position and an intensity", "[Light]")
+	{
+		Colors::Color intensity(1, 1, 1);
+		Tuples::Tuple position = Tuples::Point(0, 0, 0);
+		auto light = PointLight(position, intensity);
+		REQUIRE(light.position == position);
+		REQUIRE(light.intensity == intensity);
+	}
+
+	SECTION("The default material", "[Material]")
+	{
+		Material m{};
+		REQUIRE(m.color == Colors::Color(1, 1, 1));
+		REQUIRE(m.ambient == 0.1f);
+		REQUIRE(m.diffuse == 0.9f);
+		REQUIRE(m.specular == 0.9f);
+		REQUIRE(m.shininess == 200.0f);
+	}
+
+	SECTION("A sphere has a default marerial", "[Material]")
+	{
+		Sphere s{};
+		REQUIRE(s.material == Material{});
+	}
+
+	SECTION("A sphere may be assigned a material", "[Meterial]")
+	{
+		Sphere s{};
+		Material m{};
+		m.ambient = 1;
+		s.material = m;
+		REQUIRE(s.material == m);
+	}
+}
+
+TEST_CASE("Lighting")
+{
+	SECTION("Lighting wiyh the eye between the light and the surface")
+	{
+		Material m{};
+		auto position = Tuples::Point(0, 0, 0);
+		auto eyev = Tuples::Vector(0, 0, -1);
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0,0,-10), Colors::Color(1,1,1));
+		auto result = lighting(m, light, position, eyev, normalv);
+		REQUIRE(result == Colors::Color(1.9, 1.9, 1.9));
+	}
+
+	SECTION("Lighting with the eye between light and surface, eye offset 45")
+	{
+		Material m{};
+		auto position = Tuples::Point(0, 0, 0);
+		auto eyev = Tuples::Vector(0, sqrt(2) / 2, -sqrt(2) / 2);
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0, 0, -10), Colors::Color(1, 1, 1));
+		auto result = lighting(m, light, position, eyev, normalv);
+		REQUIRE(result == Colors::Color(1.0, 1.0, 1.0));
+
+	}
+
+	SECTION("Lighting with the eye opposite surface, eye offset 45")
+	{
+		Material m{};
+		auto position = Tuples::Point(0, 0, 0);
+		auto eyev = Tuples::Vector(0, 0, -1 );
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0, 10, -10), Colors::Color(1, 1, 1));
+		auto result = lighting(m, light, position, eyev, normalv);
+		REQUIRE(result == Colors::Color(0.7364, 0.7364, 0.7364));
+
+	}
+
+	SECTION("Lighting with the eye in the path of the reflection vector")
+	{
+		Material m{};
+		auto position = Tuples::Point(0, 0, 0);
+		auto eyev = Tuples::Vector(0, -sqrt(2) / 2, -sqrt(2) / 2);
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0, 10, -10), Colors::Color(1, 1, 1));
+		auto result = lighting(m, light, position, eyev, normalv);
+		REQUIRE(result == Colors::Color(1.6364, 1.6364, 1.6364));
+
+	}
+
+	SECTION("Lighting with the light behind the surface")
+	{
+		Material m{};
+		auto position = Tuples::Point(0, 0, 0);
+		auto eyev = Tuples::Vector(0, 0, -1);
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0, 0, 10), Colors::Color(1, 1, 1));
+		auto result = lighting(m, light, position, eyev, normalv);
+		REQUIRE(result == Colors::Color(0.1, 0.1, 0.1));
+	}
+}
+
+TEST_CASE("Features/World")
+{
+	SECTION("Creating a world", "[World]")
+	{
+		World w{};
+		REQUIRE(w.objectCount() == 0);
+		REQUIRE(w.getLight() == std::nullopt);
+
+	}
+
+	SECTION("The default world", "[World]")
+	{
+		PointLight light{ Tuples::Point(-10,10,-10), Colors::Color(1,1,1) };
+		Sphere s1{};
+		Material m{};
+		m.color = Colors::Color(0.8, 1.0, 0.6);
+		m.diffuse = 0.7;
+		m.specular = 0.2;
+		s1.material = m;
+		Sphere s2{};
+		s2.transform = Matrix4::scale(0.5, 0.5, 0.5);
+
+		World w = World::defaultWorld();
+
+		REQUIRE(w.getLight() == light);
+		REQUIRE(w.contains(s1));
+		REQUIRE(w.contains(s2));
+	}
+
+	SECTION("Intersecting a world with a ray", "[World]")
+	{
+		//TODO: Fix default world, make it a pointer so that it can be accessed anywhere
+		auto w = World::defaultWorld();
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		auto xs = intersectWorld(w, r);
+		REQUIRE(xs.size() == 4);
+		CHECK(xs[0].t == 4);
+		CHECK(xs[1].t == 4.5);
+		CHECK(xs[2].t == 5.5);
+		CHECK(xs[3].t == 6);
+	}
+
+	SECTION("Precomputing the state of an intersection", "[World]")
+	{
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Sphere shape{};
+		Intersection i{ 4, &shape };
+		auto comps = prepareComputations(i, r);
+		REQUIRE(comps.t == i.t);
+		CHECK((comps.object == i.object));
+		CHECK(comps.point == Tuples::Point(0, 0, -1));
+		CHECK(comps.eyev == Tuples::Vector(0, 0, -1));
+		CHECK(comps.normalv == Tuples::Vector(0, 0, -1));
+	}
+}
