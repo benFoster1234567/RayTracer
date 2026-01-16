@@ -9,11 +9,12 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 {}
 
 Sphere::Sphere()
-	: position{Tuples::Point(10,10,0)}
+	: position{Tuples::Point(0,0,0)}
 	, radius(1.0f)
 	, transform{ Matrix4::identity()}
 	, material{}
 {}
+
 
 Sphere::Sphere(Tuples::Tuple position, float radius)
 	: position{position}
@@ -93,7 +94,8 @@ Colors::Color lighting(const Material& material
 	, const PointLight& light
 	, const Tuples::Tuple& point
 	, const Tuples::Tuple& eyev
-	, const Tuples::Tuple& normalv)
+	, const Tuples::Tuple& normalv
+	, bool inShadow)
 {
 	Colors::Color diffuse{}, specular{};
 	float factor{};
@@ -121,11 +123,11 @@ Colors::Color lighting(const Material& material
 		else
 		{
 			factor = pow(reflectDotEye, material.shininess);
+
 			specular = light.intensity * material.specular * factor;
 		}
 	}
-
-	return ambient + diffuse + specular;
+	return (inShadow? ambient + (0.1 * diffuse) : ambient + diffuse + specular);
 }
 
 Intersection::Intersection(float t_, const Sphere *object_)
@@ -167,7 +169,7 @@ World::World(std::initializer_list<Sphere> objects, const PointLight& light)
 {
 }
 
-std::optional<PointLight> World::getLight()
+std::optional<PointLight> World::getLight() const
 {
 	return this->light;
 }
@@ -194,26 +196,25 @@ bool World::contains(const Sphere& sphere) const
 	return false;
 }
 
-World World::defaultWorld()
+World& World::defaultWorld()
 {
-	static bool exists = false;
 	static World w{};
 
-	if (!exists)
-	{
+	static std::once_flag flag;
+
+	std::call_once(flag, [&]() {
 		Sphere s1{}, s2{};
 		Material m{};
-		PointLight light{ Tuples::Point(-10,10,-10), Colors::Color(1,1,1) };
+		PointLight light{ Tuples::Point(-10, 10, -10), Colors::Color(1, 1, 1) };
 		m.color = Colors::Color(0.8, 1.0, 0.6);
 		m.diffuse = 0.7;
 		m.specular = 0.2;
 
-		s2.material = m;
+		s1.material = m;
+		s2.setTransform(Matrix4::scale(0.5, 0.5, 0.5));
 
-		s1.setTransform(Matrix4::scale(0.5, 0.5, 0.5));
-		w = World{ {s1,s2}, light };
-		exists = true;
-	}
+		w = World{ {s1, s2}, light };
+		});
 
 	return w;
 }
@@ -221,7 +222,7 @@ World World::defaultWorld()
 std::vector<Intersection> intersectWorld(const World& world, const Ray& ray)
 {
 	std::vector<Intersection> intersections_{};
-	for (auto sphere : world.getObjects())
+	for (const auto& sphere : world.objects)
 	{
 		auto newVec = intersect(sphere, ray);
 		intersections_.insert(intersections_.end(), newVec.begin(), newVec.end());
@@ -243,8 +244,61 @@ Comps prepareComputations(Intersection intersection, Ray ray)
 	comps.point = ray.position(comps.t);
 	comps.normalv = comps.object->normalAt(comps.point);
 	comps.eyev = -ray.direction;
+
+	if (Tuples::dot(comps.normalv, comps.eyev) < 0)
+	{
+		comps.inside = true;
+		comps.normalv = -comps.normalv;
+	}
+	else
+		comps.inside = false;
+
+	comps.overPoint = comps.point + comps.normalv * 0.01;
+
 	return comps;
 }
+
+Colors::Color shadeHit(const World& world, const Comps& comps)
+{
+	auto shadowed = isShadowed(world, comps.overPoint);
+
+	return lighting(comps.object->material
+		, world.getLight().value()
+		, comps.overPoint
+		, comps.eyev
+		, comps.normalv
+		, shadowed);
+}
+
+Colors::Color colorAt(const World& world, const Ray& ray)
+{
+
+
+	auto ix = intersectWorld(world, ray);
+	if (ix.empty()) return Colors::Color(0, 0, 0);
+	auto i = hit(ix);
+	if (i == std::nullopt) return Colors::Color(0, 0, 0);
+	auto comps = prepareComputations(i.value(), ray);
+	return shadeHit(world, comps);
+}
+
+bool isShadowed(const World& world, const Tuples::Tuple& point)
+{
+	auto v = world.getLight().value().position - point;
+	auto distance = Tuples::magnitude(v);
+	auto direction = Tuples::normalize(v);
+	Ray r{ point, direction };
+	auto intersections = intersectWorld(world, r);
+	auto h = hit(intersections);
+
+	if (h.has_value() && h.value().t < distance)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 
 Comps::Comps()
 	: t{}
@@ -252,5 +306,6 @@ Comps::Comps()
 	, eyev{}
 	, normalv{}
 	, object{}
+	, overPoint{}
 	, inside{false}
 { }

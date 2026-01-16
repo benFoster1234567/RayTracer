@@ -11,9 +11,9 @@
 class MatrixBase
 {
 protected:
-	std::vector<float> matrixElements;
 	size_t m{};//rows
 	size_t n{};//cols
+	std::vector<float> matrixElements;
 
 	inline MatrixBase(size_t rows, size_t cols)
 		: matrixElements(rows* cols, 0.0f), m(rows), n(cols)
@@ -66,7 +66,7 @@ public:
 		return !(*this == other);
 	}
 
-	inline float determinant() const
+	inline float determinant() const override
 	{
 		return (*this)(0, 0) * (*this)(1, 1) - (*this)(0, 1) * (*this)(1, 0);
 	}
@@ -83,8 +83,8 @@ public:
 		: MatrixBase(3, 3)
 	{
 		matrixElements = { m00,m01,m02,
-						m10,m11,m12,
-						m20,m21,m22 };
+						   m10,m11,m12,
+						   m20,m21,m22 };
 	}
 
 	inline bool operator==(const Matrix3& other)  const
@@ -108,7 +108,7 @@ public:
 		return ((row + col) % 2 == 0 ? 1.0f : -1.0f) * (*this).minor(row, col);
 	}
 
-	inline float determinant() const
+	inline float determinant() const override
 	{
 		return (*this)(0, 0) * (*this).cofactor(0, 0) +
 			(*this)(0, 1) * (*this).cofactor(0, 1) +
@@ -189,7 +189,7 @@ public:
 		return ((row + col) % 2 == 0 ? 1.0f : -1.0f) * (*this).minor(row, col);
 	}
 
-	inline float determinant() const
+	inline float determinant() const override
 	{
 		return  (*this)(0, 0) * (*this).cofactor(0, 0) +
 				(*this)(0, 1) * (*this).cofactor(0, 1) +
@@ -199,15 +199,21 @@ public:
 
 	Matrix4 inverse() const;
 
-
 	static Matrix4 translation(float x, float y, float z);
+
 	static Matrix4 scale(float x, float y, float z);
+
 	static Matrix4 rotationX(float radians);
+
 	static Matrix4 rotationY(float radians);
+
 	static Matrix4 rotationZ(float radians);
+
 	static Matrix4 shearing(float xy, float xz, float yx, float yz, float zx, float zy);
 
+	static Matrix4 viewTransform(const Tuples::Tuple& from, const Tuples::Tuple& to, const Tuples::Tuple& up);
 
 };
 
 float radians(float degrees);
+

@@ -149,6 +149,22 @@ Matrix4 Matrix4::shearing(float xy, float xz, float yx, float yz, float zx, floa
 	};
 }
 
+Matrix4 Matrix4::viewTransform(const Tuples::Tuple& from, const Tuples::Tuple& to, const Tuples::Tuple& up)
+{
+	Tuples::Tuple forward = normalize(to - from);
+	Tuples::Tuple left = Tuples::cross(forward, Tuples::normalize(up));
+	Tuples::Tuple trueUp = Tuples::cross(left, forward);
+
+	Matrix4 orientation{
+		left.x,left.y,left.z, 0.0f,
+		trueUp.x , trueUp.y,trueUp.z, 0.0f,
+		-forward.x , -forward.y , -forward.z, 0.0f,
+		0.0f , 0.0f , 0.0f , 1.0f
+	};
+
+	return orientation* translation(-from.x, -from.y, -from.z);
+}
+
 Matrix4 Matrix4::identity()
 {
 	return Matrix4

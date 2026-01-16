@@ -3,6 +3,7 @@
 #include "Color.h"
 #include "Matrix.h"
 #include "Tuple.h"
+
 #include <algorithm>
 #include <optional>
 
@@ -69,6 +70,7 @@ struct Sphere
 	Sphere();
 	Sphere(Tuples::Tuple position, float radius);
 	Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const;
+
 	inline void setTransform(Matrix4 transform_)
 	{
 		transform = transform_;
@@ -97,9 +99,11 @@ struct Intersection
 };
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list);
+
 Ray transform(const Ray& ray, const Matrix4& matrix);
 
 const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray);
+
 std::optional<Intersection> hit(const std::vector<Intersection>& ints);
 
 Tuples::Tuple reflect(const Tuples::Tuple& in, const Tuples::Tuple& normal);
@@ -108,7 +112,8 @@ Colors::Color lighting(const Material& material
 	, const PointLight& light
 	, const Tuples::Tuple& point
 	, const Tuples::Tuple& eyev
-	, const Tuples::Tuple& normalv);
+	, const Tuples::Tuple& normalv
+	, bool inShadow);
 
 class World
 {
@@ -118,26 +123,21 @@ public:
 	World(std::initializer_list<Sphere> objects);
 	World(std::initializer_list<Sphere> objects, const PointLight& light);
 
-	std::optional<PointLight> getLight();
+	std::optional<PointLight> getLight() const;
 	void setLight(const PointLight& light);
 
 	void addObject(const Sphere& sphere);
 	bool contains(const Sphere& sphere) const;
 
-	std::vector<Sphere> getObjects() const
-	{
-		return objects;
-	}
-
-	inline size_t objectCount() const
+	size_t objectCount() const
 	{
 		return objects.size();
 	}
 
-	static World defaultWorld();
+	static World& defaultWorld();
 
-private:
 	std::vector<Sphere> objects{};
+private:
 	std::optional<PointLight> light{};
 
 };
@@ -153,9 +153,14 @@ struct Comps
 	Tuples::Tuple normalv{};
 	const Sphere *object;
 	bool inside{};
+	Tuples::Tuple overPoint{};
 
 	Comps();
 
 };
 
 Comps prepareComputations(Intersection intersection, Ray ray);
+Colors::Color shadeHit(const World& world, const Comps& comps);
+Colors::Color colorAt(const World& world, const Ray& ray);
+
+bool isShadowed(const World& world, const Tuples::Tuple& point);

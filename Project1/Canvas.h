@@ -38,6 +38,8 @@ public:
 		pixels.at(y * width + x) = color;
 	}
 
+
+
 	inline const Colors::Color& pixelAt(int x, int y) const
 	{
 		return pixels.at(y * width + x);

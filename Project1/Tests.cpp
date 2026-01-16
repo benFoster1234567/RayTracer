@@ -5,6 +5,9 @@
 #include "Canvas.h"
 #include "Ray.h"
 #include "Demo.h"
+#include "Camera.h"
+
+
 #include <cmath>
 #include <numbers>
 
@@ -1037,7 +1040,7 @@ TEST_CASE("Introducing a function called hit. Returning the hit from a collectio
 		Intersection i2{ 2,&s };
 		auto xs = intersections({ i2,i1 });
 		auto i = hit(xs);
-		std::cout << "i expected: " << i1.t << "i real: " << i.value().t;
+		//std::cout << "i expected: " << i1.t << "i real: " << i.value().t;
 		REQUIRE((i.value().t) == i1.t);
 	}
 
@@ -1253,7 +1256,7 @@ TEST_CASE("Lighting")
 		auto eyev = Tuples::Vector(0, 0, -1);
 		auto normalv = Tuples::Vector(0, 0, -1);
 		auto light = PointLight(Tuples::Point(0,0,-10), Colors::Color(1,1,1));
-		auto result = lighting(m, light, position, eyev, normalv);
+		auto result = lighting(m, light, position, eyev, normalv, false);
 		REQUIRE(result == Colors::Color(1.9, 1.9, 1.9));
 	}
 
@@ -1264,7 +1267,7 @@ TEST_CASE("Lighting")
 		auto eyev = Tuples::Vector(0, sqrt(2) / 2, -sqrt(2) / 2);
 		auto normalv = Tuples::Vector(0, 0, -1);
 		auto light = PointLight(Tuples::Point(0, 0, -10), Colors::Color(1, 1, 1));
-		auto result = lighting(m, light, position, eyev, normalv);
+		auto result = lighting(m, light, position, eyev, normalv, false);
 		REQUIRE(result == Colors::Color(1.0, 1.0, 1.0));
 
 	}
@@ -1276,7 +1279,7 @@ TEST_CASE("Lighting")
 		auto eyev = Tuples::Vector(0, 0, -1 );
 		auto normalv = Tuples::Vector(0, 0, -1);
 		auto light = PointLight(Tuples::Point(0, 10, -10), Colors::Color(1, 1, 1));
-		auto result = lighting(m, light, position, eyev, normalv);
+		auto result = lighting(m, light, position, eyev, normalv, false);
 		REQUIRE(result == Colors::Color(0.7364, 0.7364, 0.7364));
 
 	}
@@ -1288,7 +1291,7 @@ TEST_CASE("Lighting")
 		auto eyev = Tuples::Vector(0, -sqrt(2) / 2, -sqrt(2) / 2);
 		auto normalv = Tuples::Vector(0, 0, -1);
 		auto light = PointLight(Tuples::Point(0, 10, -10), Colors::Color(1, 1, 1));
-		auto result = lighting(m, light, position, eyev, normalv);
+		auto result = lighting(m, light, position, eyev, normalv, false);
 		REQUIRE(result == Colors::Color(1.6364, 1.6364, 1.6364));
 
 	}
@@ -1300,7 +1303,7 @@ TEST_CASE("Lighting")
 		auto eyev = Tuples::Vector(0, 0, -1);
 		auto normalv = Tuples::Vector(0, 0, -1);
 		auto light = PointLight(Tuples::Point(0, 0, 10), Colors::Color(1, 1, 1));
-		auto result = lighting(m, light, position, eyev, normalv);
+		auto result = lighting(m, light, position, eyev, normalv, false);
 		REQUIRE(result == Colors::Color(0.1, 0.1, 0.1));
 	}
 }
@@ -1359,4 +1362,264 @@ TEST_CASE("Features/World")
 		CHECK(comps.eyev == Tuples::Vector(0, 0, -1));
 		CHECK(comps.normalv == Tuples::Vector(0, 0, -1));
 	}
+
+	SECTION("The hit, when an intersection occurs on the outside", "[Intersection]")
+	{
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Sphere shape{};
+		auto i = Intersection(4, &shape);
+		auto comps = prepareComputations(i, r);
+		CHECK(comps.inside == false);
+	}
+
+	SECTION("The hit, when an intersection occurs on the inside", "[Intersection]")
+	{
+		Ray r{ Tuples::Point(0,0,0), Tuples::Vector(0,0,1) };
+		Sphere shape{};
+		auto i = Intersection( 1, &shape );
+		auto comps = prepareComputations(i, r);
+		CHECK(comps.point == Tuples::Point(0, 0, 1));
+		CHECK(comps.eyev == Tuples::Vector(0, 0, -1));
+		CHECK(comps.inside == true);
+		CHECK(comps.normalv == Tuples::Vector(0, 0, -1));
+	}
+
+	SECTION("Shading an intersection", "[Intersection]")
+	{
+		World w = World::defaultWorld();
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Sphere shape = w.objects[0];
+		//std::cout << shape.transform.matrixElements.at(0) << std::endl;
+		Intersection i(4.0f, &shape);
+		auto comps = prepareComputations(i, r);
+		auto c = shadeHit(w, comps);
+		//std::cout << c.r << "," << c.g << "," << c.b << std::endl;
+		CHECK(c == Colors::Color(0.38066, 0.47583, 0.2855));
+	}
+
+	SECTION("Shading an intersectio from the inside", "[Intersection]")
+	{
+		World w = World::defaultWorld();
+		w.setLight( PointLight( Tuples::Point(0, 0.25, 0), Colors::Color(1,1,1)));
+		Ray r{ Tuples::Point(0,0,0), Tuples::Vector(0,0,1) };
+		Sphere shape = w.objects[1];
+		//std::cout << shape.transform.matrixElements.at(0) << std::endl;
+		Intersection i(0.5f, &shape);
+		auto comps = prepareComputations(i, r);
+		auto c = shadeHit(w, comps);
+		//std::cout << c.r << "," << c.g << "," << c.b << std::endl;
+		CHECK(c == Colors::Color(0.90498, 0.90498, 0.90498));
+	}
+
+	SECTION(" A color when a ray misses", "[colorAt]")
+	{
+		World w = World::defaultWorld();
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,1,0) };
+		Colors::Color c = colorAt(w, r);
+		CHECK(c == Colors::Color(0, 0, 0));
+	}
+
+	SECTION(" A color when a ray hits", "[colorAt]")
+	{
+		World w = World::defaultWorld();
+		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
+		Colors::Color c = colorAt(w, r);
+		CHECK(c == Colors::Color(0.38066, 0.47583, 0.2855));
+	}
+
+	SECTION("The color with an intersection behind the ray", "[colorAt]")
+	{
+		World w = World::defaultWorld();
+		auto& outer = w.objects[0];
+		outer.material.ambient = 1;
+		auto& inner = w.objects[1];
+		inner.material.ambient = 1;
+		Ray r{ Tuples::Point(0,0,0.75), Tuples::Vector(0,0,-1) };
+		Colors::Color c = colorAt(w, r);
+		CHECK(c == inner.material.color);
+	}
+}
+
+TEST_CASE("Testing view transformation", "[viewTransformation]")
+{
+	SECTION("The transformation matrix for the default orientation", "[viewTransformation]")
+	{
+		auto from = Tuples::Point(0, 0, 0);
+		auto to = Tuples::Point(0, 0, -1);
+		auto up = Tuples::Vector(0, 1, 0);
+
+		auto t = Matrix4::viewTransform(from, to, up);
+		CHECK(t == Matrix4::identity());
+	}
+
+	SECTION("The transformation matrix looking in positive z direction", "[viewTransformation]")
+	{
+		auto from = Tuples::Point(0, 0, 0);
+		auto to = Tuples::Point(0, 0, 1);
+		auto up = Tuples::Vector(0, 1, 0);
+		auto t = Matrix4::viewTransform(from, to, up);
+		CHECK(t == Matrix4::scale(-1, 1, -1));
+	}
+
+	SECTION("The view transformation moves the world", "[viewTransformation]")
+	{
+		auto from = Tuples::Point(0, 0, 8);
+		auto to = Tuples::Point(0, 0, 0);
+		auto up = Tuples::Vector(0, 1, 0);
+		auto t = Matrix4::viewTransform(from, to, up);
+		CHECK(t == Matrix4::translation(0, 0, -8));
+	}
+
+	SECTION("An arbitrary view transformation", "[viewTransformation]")
+	{
+		auto from = Tuples::Point(1, 3, 2);
+		auto to = Tuples::Point(4, -2, 8);
+		auto up = Tuples::Vector(1, 1, 0);
+		auto t = Matrix4::viewTransform(from, to, up);
+		auto expected = Matrix4(
+			-0.50709f, 0.50709f, 0.67612f, -2.36643f,
+			0.76772f, 0.60609f, 0.12122f, -2.82843f,
+			-0.35857f, 0.59761f, -0.71714f, 0.00000f,
+			0.00000f, 0.00000f, 0.00000f, 1.00000f
+		);
+		CHECK(t == expected);
+	}
+}
+
+TEST_CASE("Implementing a camera", "[camera]")
+{
+	SECTION("Constructing a camera", "[camera]")
+	{
+		size_t hsize = 160;
+		size_t vsize = 120;
+		float fieldOfView = radians(90);
+		Camera c(hsize, vsize, fieldOfView);
+
+		CHECK(c.hSize == 160);
+		CHECK(c.vSize == 120);
+		CHECK(c.fieldOfView == radians(90));
+		CHECK(c.transform == Matrix4::identity());
+	}
+
+	SECTION("The pixel size for a horizontal canvas", "[camera]")
+	{
+		Camera c(200, 125, radians(90));
+		CHECK(std::abs(c.pixelSize - 0.01f) < 0.0001f);
+	}
+
+	SECTION("The pixel size for a vertical canvas", "[camera]")
+	{
+		Camera c(125, 200, radians(90));
+		CHECK(std::abs(c.pixelSize - 0.01f) < 0.0001f);
+	}
+
+	SECTION("Constructing a ray through the center of the canvas", "[camera]")
+	{
+		Camera c(201, 101, radians(90));
+		Ray r = c.rayForPixel(100, 50);
+		CHECK(r.origin == Tuples::Point(0, 0, 0));
+		CHECK(r.direction == Tuples::Vector(0, 0, -1));
+	}
+
+	SECTION("Constructing a ray through a corner of the canvas", "[camera]")
+	{
+		Camera c(201, 101, radians(90));
+		Ray r = c.rayForPixel(0, 0);
+		CHECK(r.origin == Tuples::Point(0, 0, 0));
+		CHECK(r.direction == Tuples::Vector(0.66519f, 0.33259f, -0.66851f));
+	}
+
+	SECTION("Constructing a ray when the camera is transformed", "[camera]")
+	{
+		Camera c(201, 101, radians(90));
+		c.transform = Matrix4::rotationY(radians(45)) * Matrix4::translation(0, -2, 5);
+		Ray r = c.rayForPixel(100, 50);
+		CHECK(r.origin == Tuples::Point(0, 2, -5));
+		CHECK(r.direction == Tuples::Vector(std::sqrt(2.0f) / 2.0f, 0, -std::sqrt(2.0f) / 2.0f));
+	}
+
+
+
+	SECTION("Rendering a world with a camera", "[camera]")
+	{
+		World w = World::defaultWorld();
+		Camera c(11, 11, radians(90));
+		auto from = Tuples::Point(0, 0, -5);
+		auto to = Tuples::Point(0, 0, 0);
+		auto up = Tuples::Vector(0, 1, 0);
+		c.transform = Matrix4::viewTransform(from, to, up);
+
+		Canvas image = render(c, w);
+
+		CHECK(image.pixelAt(5, 5) == Colors::Color(0.38066f, 0.47583f, 0.2855f));
+	}
+
+}
+
+TEST_CASE("Chapter 11 - implementing shadows", "[Shadows]")
+{
+	SECTION("Lighing the surface in shadow", "[Shadows]")
+	{
+		auto eyev = Tuples::Vector(0, 0, -1);
+		auto normalv = Tuples::Vector(0, 0, -1);
+		auto light = PointLight(Tuples::Point(0, 0, -10), Colors::Color(1, 1, 1));
+		auto inShadow = true;
+
+		auto result = lighting(Material{}, light, Tuples::Point(0, 0, 0), eyev, normalv, inShadow);
+
+		CHECK(result == Colors::Color(0.1, 0.1, 0.1));
+
+	}
+
+	SECTION("There is no shadow when nothing is collinear with point and light", "[Shadows]")
+	{
+		auto w = World::defaultWorld();
+		auto p = Tuples::Point(0, 10, 0);
+		CHECK(isShadowed(w, p) == false);
+	}
+
+	SECTION("The shadow when an object is between the point and the light", "[Shadows]")
+	{
+		auto w = World::defaultWorld();
+		auto p = Tuples::Point(10, -10, 10);
+
+		CHECK(isShadowed(w, p) == true);
+
+
+	}
+
+	SECTION("The light lies between the point and the sphere", "[Shadows]")
+	{
+		auto w = World::defaultWorld();
+		auto p = Tuples::Point(-20, 20, -20);
+		CHECK(isShadowed(w, p) == false);
+	}
+
+	SECTION("The object is behind the point", "[Shadows]")
+	{
+		auto w = World::defaultWorld();
+		auto p = Tuples::Point(-2, 2, -2);
+		CHECK(isShadowed(w, p) == false);
+	}
+
+	SECTION("shadeHit is given an intersection in shadow", "[Shadows]") {
+		World w{};
+		w.setLight(PointLight(Tuples::Point(0, 0, -10), Colors::Color(1, 1, 1)));
+
+		Sphere s1{};
+		w.addObject(s1);
+
+		Sphere s2{};
+		s2.setTransform(Matrix4::translation(0, 0, 10));
+		w.addObject(s2);
+
+		Ray r(Tuples::Point(0, 0, 5), Tuples::Vector(0, 0, 1));
+		Intersection i(4, &s2);
+
+		Comps comps = prepareComputations(i, r);
+		Colors::Color c = shadeHit(w, comps);
+
+		REQUIRE(c == Colors::Color(0.1, 0.1, 0.1));  // Only ambient light
+	}
+
 }
