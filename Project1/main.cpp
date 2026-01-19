@@ -1,5 +1,5 @@
 // main.cpp
-//#define RUN_TESTS
+#define RUN_TESTS
 #ifdef RUN_TESTS
 #define CATCH_CONFIG_MAIN
 #include "catch_amalgamated.hpp"
@@ -83,7 +83,7 @@ int main()
 	left.material.diffuse = 0.7;
 	left.material.specular = 0.3;
 
-	World world{ {floor, leftWall, rightWall, middle, right, left}
+	World world{ {&floor, &leftWall, &rightWall, &middle, &right, &left}
 	, PointLight(Tuples::Point(-10,10,-10), Colors::Color(1,1,1)) };
 
 	Camera camera{ 512, 512, std::numbers::pi / 3 };

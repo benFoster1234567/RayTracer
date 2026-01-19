@@ -58,8 +58,21 @@ inline bool operator==(const PointLight& a, const PointLight& b)
 {
 	return a.intensity == b.intensity && a.position == b.position;
 }
+
+struct Shape
+{
+	Matrix4 transform{};
+	Material material{};
+
+	virtual std::vector<float> localIntersect(const Ray& ray) const = 0;
+	virtual Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const = 0;
+	virtual unsigned int hash() const = 0;
+
+
+};
+
 	
-struct Sphere
+struct Sphere : public Shape
 {
 
 	Tuples::Tuple position{};
@@ -69,8 +82,14 @@ struct Sphere
 
 	Sphere();
 	Sphere(Tuples::Tuple position, float radius);
-	Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const;
 
+	unsigned int hash() const override
+	{
+		return 1;
+	}
+
+	Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const override;
+	std::vector<float> localIntersect(const Ray& ray) const override;
 	inline void setTransform(Matrix4 transform_)
 	{
 		transform = transform_;
@@ -92,17 +111,17 @@ struct Intersection
 	
 	float t{};
 
-	const Sphere *object;
+	Shape *object;
 
-	Intersection(float t_, const Sphere *object_);
+	Intersection(float t_, Shape *object_);
 
 };
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list);
 
-Ray transform(const Ray& ray, const Matrix4& matrix);
+Ray transformRay(const Ray& ray, const Matrix4& matrix);
 
-const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray);
+std::vector<Intersection> intersect(Shape& Shape, const Ray& ray);
 
 std::optional<Intersection> hit(const std::vector<Intersection>& ints);
 
@@ -120,14 +139,14 @@ class World
 public:
 
 	World();
-	World(std::initializer_list<Sphere> objects);
-	World(std::initializer_list<Sphere> objects, const PointLight& light);
+	World(std::initializer_list<Shape*> objects);
+	World(std::initializer_list<Shape*> objects, const PointLight& light);
 
 	std::optional<PointLight> getLight() const;
 	void setLight(const PointLight& light);
 
-	void addObject(const Sphere& sphere);
-	bool contains(const Sphere& sphere) const;
+	void addObject(Shape& shape);
+	bool contains(Shape& shape);
 
 	size_t objectCount() const
 	{
@@ -136,7 +155,7 @@ public:
 
 	static World& defaultWorld();
 
-	std::vector<Sphere> objects{};
+	std::vector<Shape*> objects{};
 private:
 	std::optional<PointLight> light{};
 
@@ -151,7 +170,7 @@ struct Comps
 	Tuples::Tuple point{};
 	Tuples::Tuple eyev{};
 	Tuples::Tuple normalv{};
-	const Sphere *object;
+	Shape *object;
 	bool inside{};
 	Tuples::Tuple overPoint{};
 

@@ -32,6 +32,25 @@ Tuples::Tuple Sphere::normalAt(const Tuples::Tuple& worldPoint) const
 	return normalize(worldNormal);
 }
 
+std::vector<float> Sphere::localIntersect(const Ray& ray) const
+{
+	Ray ray2 = transformRay(ray, this->transform.inverse());
+	Tuples::Tuple sphereToRay{ ray2.origin - Tuples::Point(0,0,0) };
+	float a = Tuples::dot(ray2.direction, ray2.direction);
+	float b = 2 * Tuples::dot(ray2.direction, sphereToRay);
+	float c = Tuples::dot(sphereToRay, sphereToRay) - 1;
+	float discriminant = (b * b) - (4 * a * c);
+
+	//neg discriminant, return an empty vector
+	if (discriminant < 0)
+		return std::vector<float>();
+
+	float t1 = (-b - sqrt(discriminant)) / (2 * a);
+	float t2 = (-b + sqrt(discriminant)) / (2 * a);
+
+	return std::vector<float>{t1, t2};
+}
+
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list)
 {
 	auto v = std::vector<Intersection>(list);
@@ -42,7 +61,7 @@ std::vector<Intersection> intersections(std::initializer_list<Intersection> list
 	return v;
 }
 
-Ray transform(const Ray& ray, const Matrix4& matrix)
+Ray transformRay(const Ray& ray, const Matrix4& matrix)
 {
 	
 	Ray newRay{ matrix * ray.origin, matrix * ray.direction };
@@ -51,23 +70,17 @@ Ray transform(const Ray& ray, const Matrix4& matrix)
 
 }
 
-const std::vector<Intersection> intersect(const Sphere& sphere, const Ray& ray)
+std::vector<Intersection> intersect(Shape& shape, const Ray& ray)
 {
-	Ray ray2 = transform(ray, sphere.transform.inverse());
-	Tuples::Tuple sphereToRay{ ray2.origin - Tuples::Point(0,0,0) };
-	float a = Tuples::dot(ray2.direction, ray2.direction);
-	float b = 2 * Tuples::dot(ray2.direction, sphereToRay);
-	float c = Tuples::dot(sphereToRay, sphereToRay) - 1;
-	float discriminant = (b * b) - (4 * a * c);
-	
-	//neg discriminant, return an empty vector
-	if (discriminant < 0)
-		return std::vector<Intersection>();
+	std::vector<float> ts = shape.localIntersect(ray);
+	std::vector<Intersection> is{};
 
-	float t1 = (-b - sqrt(discriminant)) / (2 * a);
-	float t2 = (-b + sqrt(discriminant)) / (2 * a);
+	for (auto& t : ts)
+	{
+		is.emplace_back(t, &shape);
+	}
 
-	return std::vector<Intersection>{Intersection{ t1,&sphere }, Intersection{ t2, &sphere }};
+	return is;
 }
 
 std::optional<Intersection> hit(const std::vector<Intersection>& ints)
@@ -127,10 +140,10 @@ Colors::Color lighting(const Material& material
 			specular = light.intensity * material.specular * factor;
 		}
 	}
-	return (inShadow? ambient + (0.1 * diffuse) : ambient + diffuse + specular);
+	return (inShadow? ambient : ambient + diffuse + specular);
 }
 
-Intersection::Intersection(float t_, const Sphere *object_)
+Intersection::Intersection(float t_, Shape *object_)
 	: t{t_}, object{object_}
 {}
 
@@ -158,12 +171,12 @@ World::World()
 {
 }
 
-World::World(std::initializer_list<Sphere> objects)
+World::World(std::initializer_list<Shape*> objects)
 	: objects{objects}
 {
 }
 
-World::World(std::initializer_list<Sphere> objects, const PointLight& light)
+World::World(std::initializer_list<Shape*> objects, const PointLight& light)
 	: objects{objects}
 	, light{light}
 {
@@ -179,16 +192,16 @@ void World::setLight(const PointLight& light)
 	this->light = std::optional<PointLight>(light);
 }
 
-void World::addObject(const Sphere& sphere)
+void World::addObject(Shape& shape)
 {
-	objects.push_back(sphere);
+	objects.push_back(&shape);
 }
 
-bool World::contains(const Sphere& sphere) const
+bool World::contains(Shape& shape)
 {
-	for (const auto s : this->objects)
+	for (auto s : this->objects)
 	{
-		if (s == sphere) {
+		if (s->hash() == shape.hash()) {
 			return true;
 		}
 	}
@@ -199,11 +212,11 @@ bool World::contains(const Sphere& sphere) const
 World& World::defaultWorld()
 {
 	static World w{};
+	static Sphere s1{}, s2{};
 
 	static std::once_flag flag;
 
 	std::call_once(flag, [&]() {
-		Sphere s1{}, s2{};
 		Material m{};
 		PointLight light{ Tuples::Point(-10, 10, -10), Colors::Color(1, 1, 1) };
 		m.color = Colors::Color(0.8, 1.0, 0.6);
@@ -213,7 +226,7 @@ World& World::defaultWorld()
 		s1.material = m;
 		s2.setTransform(Matrix4::scale(0.5, 0.5, 0.5));
 
-		w = World{ {s1, s2}, light };
+		w = World{ {&s1, &s2}, light };
 		});
 
 	return w;
@@ -222,9 +235,9 @@ World& World::defaultWorld()
 std::vector<Intersection> intersectWorld(const World& world, const Ray& ray)
 {
 	std::vector<Intersection> intersections_{};
-	for (const auto& sphere : world.objects)
+	for (const auto& shape : world.objects)
 	{
-		auto newVec = intersect(sphere, ray);
+		auto newVec = intersect(*shape, ray);
 		intersections_.insert(intersections_.end(), newVec.begin(), newVec.end());
 	}
 

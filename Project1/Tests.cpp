@@ -1085,7 +1085,7 @@ TEST_CASE("Object transformations")
 	{
 		Ray r{ Tuples::Point(1,2,3), Tuples::Vector(0,1,0) };
 		Matrix4 m = Matrix4::translation(3, 4, 5);
-		Ray r2 = transform(r, m);
+		Ray r2 = transformRay(r, m);
 		Tuples::Tuple resultP = Tuples::Point(4, 6, 8);
 		Tuples::Tuple resultD = Tuples::Vector(0, 1, 0);
 		REQUIRE(resultP == r2.origin);
@@ -1096,7 +1096,7 @@ TEST_CASE("Object transformations")
 	{
 		Ray r{ Tuples::Point(1,2,3), Tuples::Vector(0,1,0) };
 		Matrix4 m = Matrix4::scale(2, 3, 4);
-		Ray r2 = transform(r, m);
+		Ray r2 = transformRay(r, m);
 		Tuples::Tuple resultP = Tuples::Point(2, 6, 12);
 		Tuples::Tuple resultD = Tuples::Vector(0, 3, 0);
 		REQUIRE(resultP == r2.origin);
@@ -1388,9 +1388,9 @@ TEST_CASE("Features/World")
 	{
 		World w = World::defaultWorld();
 		Ray r{ Tuples::Point(0,0,-5), Tuples::Vector(0,0,1) };
-		Sphere shape = w.objects[0];
+		Shape *shape = w.objects[0];
 		//std::cout << shape.transform.matrixElements.at(0) << std::endl;
-		Intersection i(4.0f, &shape);
+		Intersection i(4.0f, shape);
 		auto comps = prepareComputations(i, r);
 		auto c = shadeHit(w, comps);
 		//std::cout << c.r << "," << c.g << "," << c.b << std::endl;
@@ -1402,9 +1402,9 @@ TEST_CASE("Features/World")
 		World w = World::defaultWorld();
 		w.setLight( PointLight( Tuples::Point(0, 0.25, 0), Colors::Color(1,1,1)));
 		Ray r{ Tuples::Point(0,0,0), Tuples::Vector(0,0,1) };
-		Sphere shape = w.objects[1];
+		Shape *shape = w.objects[1];
 		//std::cout << shape.transform.matrixElements.at(0) << std::endl;
-		Intersection i(0.5f, &shape);
+		Intersection i(0.5f, shape);
 		auto comps = prepareComputations(i, r);
 		auto c = shadeHit(w, comps);
 		//std::cout << c.r << "," << c.g << "," << c.b << std::endl;
@@ -1430,13 +1430,13 @@ TEST_CASE("Features/World")
 	SECTION("The color with an intersection behind the ray", "[colorAt]")
 	{
 		World w = World::defaultWorld();
-		auto& outer = w.objects[0];
-		outer.material.ambient = 1;
-		auto& inner = w.objects[1];
-		inner.material.ambient = 1;
+		Shape* outer = w.objects[0];
+		outer->material.ambient = 1;
+		Shape* inner = w.objects[1];
+		inner->material.ambient = 1;
 		Ray r{ Tuples::Point(0,0,0.75), Tuples::Vector(0,0,-1) };
 		Colors::Color c = colorAt(w, r);
-		CHECK(c == inner.material.color);
+		CHECK(c == inner->material.color);
 	}
 }
 
