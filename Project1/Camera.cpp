@@ -87,21 +87,11 @@ ImageRenderer::ImageRenderer(Camera camera, World world)
 	this->canvas = Canvas(camera.hSize, camera.vSize, Colors::Color(0, 0, 0));
 }
 
-//
-//ImageRenderer::ImageRenderer(const Camera& camera, const World& world)
-//	: camera(camera)
-//	, world(world)
-//{
-//	this->canvas = Canvas(camera.hSize, camera.vSize, Colors::Color(0, 0, 0));
-//}
+
+
 
 Canvas ImageRenderer::render()
 {
-
-	//unsigned int numThreads = std::thread::hardware_concurrency();
-	//if (numThreads == 0) numThreads = 4;
-
-	//int rowsPerThread = camera.vSize / numThreads;
 
 	int rowsPerThread = 64;
 	int numThreads = camera.vSize / rowsPerThread;
@@ -122,9 +112,6 @@ Canvas ImageRenderer::render()
 
 	std::cout << "Main thread continuing..." << std::endl;
 	for (auto& t : threads) {
-		//if (t.joinable()) {
-		//	t.join();
-		//}
 		t.join();
 	}
 	std::cout << "All threads joined." << std::endl;

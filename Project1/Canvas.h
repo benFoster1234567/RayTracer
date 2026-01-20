@@ -8,7 +8,7 @@
 #include <fstream>
 #include "Common.h"
 #include "Color.h"
-
+#include "Material.h"
 class Canvas
 {
 public:

@@ -3,7 +3,7 @@
 #include "Color.h"
 #include "Matrix.h"
 #include "Tuple.h"
-
+#include "Material.h"
 #include <algorithm>
 #include <optional>
 
@@ -23,16 +23,7 @@ struct Ray
 
 };
 
-struct Material
-{
-	float ambient{};
-	float diffuse{};
-	float specular{};
-	float shininess{};
-	Colors::Color color{};
 
-	Material();
-};
 
 inline bool operator==(const Material& a, const Material& b)
 {
@@ -61,13 +52,12 @@ inline bool operator==(const PointLight& a, const PointLight& b)
 
 struct Shape
 {
-	Matrix4 transform{};
+	Matrix4 transform{Matrix4::identity()};
 	Material material{};
 
 	virtual std::vector<float> localIntersect(const Ray& ray) const = 0;
 	virtual Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const = 0;
 	virtual unsigned int hash() const = 0;
-
 
 };
 
@@ -76,9 +66,7 @@ struct Sphere : public Shape
 {
 
 	Tuples::Tuple position{};
-	Matrix4 transform{};
 	float radius{};
-	Material material{};
 
 	Sphere();
 	Sphere(Tuples::Tuple position, float radius);

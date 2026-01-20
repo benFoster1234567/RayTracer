@@ -1623,3 +1623,102 @@ TEST_CASE("Chapter 11 - implementing shadows", "[Shadows]")
 	}
 
 }
+
+TEST_CASE("Test Shape - Chapter 9", "[Shape]")
+{
+	// Helper test shape that tracks method calls
+	struct TestShape : public Shape
+	{
+		mutable Ray saved_ray{};
+
+		std::vector<float> localIntersect(const Ray& ray) const override
+		{
+			saved_ray = ray;
+			return std::vector<float>{};
+		}
+
+		Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const override
+		{
+			Tuples::Tuple objectPoint = this->transform.inverse() * worldPoint;
+			Tuples::Tuple objectNormal = Tuples::Vector(objectPoint.x, objectPoint.y, objectPoint.z);
+			Tuples::Tuple worldNormal = this->transform.inverse().transpose() * objectNormal;
+			worldNormal.w = 0;
+			return Tuples::normalize(worldNormal);
+		}
+
+		unsigned int hash() const override
+		{
+			return 999;  // Arbitrary hash for test shape
+		}
+	};
+
+	SECTION("The default transformation")
+	{
+		TestShape s{};
+		REQUIRE(s.transform == Matrix4::identity());
+	}
+
+	SECTION("Assigning a transformation")
+	{
+		TestShape s{};
+		s.transform = Matrix4::translation(2, 3, 4);
+		REQUIRE(s.transform == Matrix4::translation(2, 3, 4));
+	}
+
+	SECTION("The default material")
+	{
+		TestShape s{};
+		Material m = s.material;
+		REQUIRE(m == Material{});
+	}
+
+	SECTION("Assigning a material")
+	{
+		TestShape s{};
+		Material m{};
+		m.ambient = 1;
+		s.material = m;
+		REQUIRE(s.material == m);
+	}
+
+	SECTION("Intersecting a scaled shape with a ray")
+	{
+		Ray r{ Tuples::Point(0, 0, -5), Tuples::Vector(0, 0, 1) };
+		TestShape s{};
+		s.transform = Matrix4::scale(2, 2, 2);
+		auto xs = intersect(s, r);
+
+		REQUIRE(s.saved_ray.origin == Tuples::Point(0, 0, -2.5));
+		REQUIRE(s.saved_ray.direction == Tuples::Vector(0, 0, 0.5));
+	}
+
+	SECTION("Intersecting a translated shape with a ray")
+	{
+		Ray r{ Tuples::Point(0, 0, -5), Tuples::Vector(0, 0, 1) };
+		TestShape s{};
+		s.transform = Matrix4::translation(5, 0, 0);
+		auto xs = intersect(s, r);
+
+		REQUIRE(s.saved_ray.origin == Tuples::Point(-5, 0, -5));
+		REQUIRE(s.saved_ray.direction == Tuples::Vector(0, 0, 1));
+	}
+
+	SECTION("Computing the normal on a translated shape")
+	{
+		TestShape s{};
+		s.transform = Matrix4::translation(0, 1, 0);
+		auto n = s.normalAt(Tuples::Point(0, 1.70711, -0.70711));
+
+		REQUIRE(n == Tuples::Vector(0, 0.70711, -0.70711));
+	}
+
+	SECTION("Computing the normal on a transformed shape")
+	{
+		TestShape s{};
+		Matrix4 m = Matrix4::scale(1, 0.5, 1) * Matrix4::rotationZ(std::numbers::pi / 5);
+		s.transform = m;
+		auto n = s.normalAt(Tuples::Point(0, std::sqrt(2.0f) / 2, -std::sqrt(2.0f) / 2));
+
+		REQUIRE(n == Tuples::Vector(0, 0.97014, -0.24254));
+	}
+}

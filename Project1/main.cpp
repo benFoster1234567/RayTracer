@@ -94,6 +94,8 @@ int main()
 	ImageRenderer renderer(camera, world);
 	auto canvas = renderer.render();
 
+	std::cout << world.objects.back()->material.color.r << " , " << world.objects.back()->material.color.b << "\n";
+
 	//Canvas canvas = render(camera, world);
 
 	canvas.toFile("outputFile");

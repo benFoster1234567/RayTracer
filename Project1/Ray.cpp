@@ -11,16 +11,12 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 Sphere::Sphere()
 	: position{Tuples::Point(0,0,0)}
 	, radius(1.0f)
-	, transform{ Matrix4::identity()}
-	, material{}
 {}
 
 
 Sphere::Sphere(Tuples::Tuple position, float radius)
 	: position{position}
 	, radius(radius)
-	, transform{Matrix4::identity()}
-	, material{}
 {}
 
 Tuples::Tuple Sphere::normalAt(const Tuples::Tuple& worldPoint) const
@@ -34,10 +30,9 @@ Tuples::Tuple Sphere::normalAt(const Tuples::Tuple& worldPoint) const
 
 std::vector<float> Sphere::localIntersect(const Ray& ray) const
 {
-	Ray ray2 = transformRay(ray, this->transform.inverse());
-	Tuples::Tuple sphereToRay{ ray2.origin - Tuples::Point(0,0,0) };
-	float a = Tuples::dot(ray2.direction, ray2.direction);
-	float b = 2 * Tuples::dot(ray2.direction, sphereToRay);
+	Tuples::Tuple sphereToRay{ ray.origin - Tuples::Point(0,0,0) };
+	float a = Tuples::dot(ray.direction, ray.direction);
+	float b = 2 * Tuples::dot(ray.direction, sphereToRay);
 	float c = Tuples::dot(sphereToRay, sphereToRay) - 1;
 	float discriminant = (b * b) - (4 * a * c);
 
@@ -72,7 +67,8 @@ Ray transformRay(const Ray& ray, const Matrix4& matrix)
 
 std::vector<Intersection> intersect(Shape& shape, const Ray& ray)
 {
-	std::vector<float> ts = shape.localIntersect(ray);
+	auto localRay = transformRay(ray, shape.transform.inverse());
+	std::vector<float> ts = shape.localIntersect(localRay);
 	std::vector<Intersection> is{};
 
 	for (auto& t : ts)
@@ -147,13 +143,7 @@ Intersection::Intersection(float t_, Shape *object_)
 	: t{t_}, object{object_}
 {}
 
-Material::Material()
-	: ambient(0.1)
-	, diffuse(0.9)
-	, specular(0.9)
-	, shininess(200)
-	, color(Colors::Color(1, 1, 1))
-{}
+
 
 PointLight::PointLight()
 	: position(Tuples::Point(0,0,0))
@@ -273,6 +263,8 @@ Comps prepareComputations(Intersection intersection, Ray ray)
 
 Colors::Color shadeHit(const World& world, const Comps& comps)
 {
+
+
 	auto shadowed = isShadowed(world, comps.overPoint);
 
 	return lighting(comps.object->material
