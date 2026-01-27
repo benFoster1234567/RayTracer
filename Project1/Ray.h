@@ -76,7 +76,6 @@ struct Sphere : public Shape
 		return 1;
 	}
 
-	Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const override;
 	std::vector<float> localIntersect(const Ray& ray) const override;
 	inline void setTransform(Matrix4 transform_)
 	{
