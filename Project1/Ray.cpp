@@ -8,6 +8,27 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 	: origin{origin}, direction{direction}
 {}
 
+Plane::Plane()
+{
+}
+
+std::vector<float> Plane::localIntersect(const Ray& ray) const
+{
+	if (std::abs(ray.direction.y) < EPSILON)
+	{
+		return std::vector<float>();
+	}
+
+	float t = -ray.origin.y / ray.direction.y;
+
+	return std::vector<float>{t};
+}
+
+Tuples::Tuple Plane::localNormalAt(const Tuples::Tuple& localPoint) const
+{
+	return Tuples::Vector(0, 1, 0);
+}
+
 Sphere::Sphere()
 	: position{Tuples::Point(0,0,0)}
 	, radius(1.0f)
@@ -19,13 +40,9 @@ Sphere::Sphere(Tuples::Tuple position, float radius)
 	, radius(radius)
 {}
 
-Tuples::Tuple Sphere::normalAt(const Tuples::Tuple& worldPoint) const
+unsigned int Sphere::hash() const
 {
-	Tuples::Tuple objectPoint{ this->transform.inverse() * worldPoint };
-	auto objectNormal = objectPoint - Tuples::Point(0, 0, 0);
-	auto worldNormal = this->transform.inverse().transpose() * objectNormal;
-	worldNormal.w = 0;
-	return normalize(worldNormal);
+	return 0;
 }
 
 std::vector<float> Sphere::localIntersect(const Ray& ray) const
@@ -44,6 +61,11 @@ std::vector<float> Sphere::localIntersect(const Ray& ray) const
 	float t2 = (-b + sqrt(discriminant)) / (2 * a);
 
 	return std::vector<float>{t1, t2};
+}
+
+Tuples::Tuple Sphere::localNormalAt(const Tuples::Tuple& localPoint) const
+{
+	return localPoint - Tuples::Point(0, 0, 0);
 }
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list)
@@ -100,15 +122,163 @@ Tuples::Tuple reflect(const Tuples::Tuple& in, const Tuples::Tuple& normal)
 }
 
 Colors::Color lighting(const Material& material
+	, const AreaLight& light
+	, const Tuples::Tuple& point
+	, const Tuples::Tuple& eyev
+	, const Tuples::Tuple& normalv
+	, float intensity)
+{
+	Colors::Color color{};
+
+	if (material.pattern != std::nullopt)
+		color = checkerAt(material.pattern.value(), point);
+
+	else
+		color = material.color;
+
+	Colors::Color diffuse{}, specular{};
+
+	auto effectiveColor = color * light.intensity;
+	auto ambient = effectiveColor * material.ambient;
+	for (int v{ 0 }; v < light.vsteps; v++)
+		for (int u{ 0 }; u < light.usteps; u++)
+		{
+			float factor{};
+			auto lightv = Tuples::normalize(light.pointOnLight(u,v) - point);
+
+			auto lightDotNormal = Tuples::dot(lightv, normalv);
+
+			if (lightDotNormal < 0)
+			{
+				diffuse += Colors::Color(0, 0, 0);
+				specular += Colors::Color(0, 0, 0);
+			}
+
+			else
+			{
+				diffuse = effectiveColor * material.diffuse * lightDotNormal;
+				auto reflectv = reflect(-lightv, normalv);
+				auto reflectDotEye = Tuples::dot(reflectv, eyev);
+				if (reflectDotEye <= 0)
+				{
+					specular += Colors::Color(0, 0, 0);
+				}
+				else
+				{
+					factor = pow(reflectDotEye, material.shininess);
+					specular += light.intensity * material.specular * factor;
+				}
+			}
+		}
+	return ambient + intensity * (diffuse + specular)/light.samples;
+
+	//Colors::Color color{};
+
+	//if (material.pattern != std::nullopt)
+	//	color = checkerAt(material.pattern.value(), point);
+
+	//else
+	//	color = material.color;
+
+	//Colors::Color diffuse{}, specular{};
+	//float factor{};
+	//auto effectiveColor = color * light.intensity;
+	//auto lightv = Tuples::normalize(light.position - point);
+	//auto ambient = effectiveColor * material.ambient;
+
+	//auto lightDotNormal = Tuples::dot(lightv, normalv);
+
+	//if (lightDotNormal < 0)
+	//{
+	//	diffuse = Colors::Color(0, 0, 0);
+	//	specular = Colors::Color(0, 0, 0);
+	//}
+
+	//else
+	//{
+	//	diffuse = effectiveColor * material.diffuse * lightDotNormal;
+	//	auto reflectv = reflect(-lightv, normalv);
+	//	auto reflectDotEye = Tuples::dot(reflectv, eyev);
+	//	if (reflectDotEye <= 0)
+	//	{
+	//		specular = Colors::Color(0, 0, 0);
+	//	}
+	//	else
+	//	{
+	//		factor = pow(reflectDotEye, material.shininess);
+	//		specular = light.intensity * material.specular * factor;
+	//	}
+	//}
+	//return ambient + intensity * (diffuse + specular);
+}
+
+Colors::Color lighting(const Material& material
+	, const PointLight& light
+	, const Tuples::Tuple& point
+	, const Tuples::Tuple& eyev
+	, const Tuples::Tuple& normalv
+	, float intensity)
+{
+	Colors::Color color{};
+
+	if (material.pattern != std::nullopt)
+		color = checkerAt(material.pattern.value(), point);
+
+	else
+		color = material.color;
+
+	Colors::Color diffuse{}, specular{};
+	float factor{};
+	auto effectiveColor = color * light.intensity;
+	auto lightv = Tuples::normalize(light.position - point);
+	auto ambient = effectiveColor * material.ambient;
+
+	auto lightDotNormal = Tuples::dot(lightv, normalv);
+
+	if (lightDotNormal < 0)
+	{
+		diffuse = Colors::Color(0, 0, 0);
+		specular = Colors::Color(0, 0, 0);
+	}
+
+	else
+	{
+		diffuse = effectiveColor * material.diffuse * lightDotNormal;
+		auto reflectv = reflect(-lightv, normalv);
+		auto reflectDotEye = Tuples::dot(reflectv, eyev);
+		if (reflectDotEye <= 0)
+		{
+			specular = Colors::Color(0, 0, 0);
+		}
+		else
+		{
+			factor = pow(reflectDotEye, material.shininess);
+
+			specular = light.intensity * material.specular * factor;
+		}
+	}
+	return ambient + intensity * (diffuse + specular);
+}
+
+
+Colors::Color lighting(const Material& material
 	, const PointLight& light
 	, const Tuples::Tuple& point
 	, const Tuples::Tuple& eyev
 	, const Tuples::Tuple& normalv
 	, bool inShadow)
 {
+	Colors::Color color{};
+
+	if (material.pattern != std::nullopt)
+		color = checkerAt(material.pattern.value(), point);
+
+	else
+		color = material.color;
+
 	Colors::Color diffuse{}, specular{};
 	float factor{};
-	auto effectiveColor = material.color * light.intensity;
+	auto effectiveColor = color * light.intensity;
 	auto lightv = Tuples::normalize(light.position - point);
 	auto ambient = effectiveColor * material.ambient;
 
@@ -166,20 +336,42 @@ World::World(std::initializer_list<Shape*> objects)
 {
 }
 
-World::World(std::initializer_list<Shape*> objects, const PointLight& light)
+World::World(std::initializer_list<Shape*> objects, const PointLight& light_)
 	: objects{objects}
-	, light{light}
+	, light{light_}
+	, areaLight{std::nullopt}
 {
 }
+
+World::World(std::initializer_list<Shape*> objects, const AreaLight& light_)
+	: objects{objects}
+	, light{std::nullopt}
+	, areaLight{light_}
+{
+}
+
+
 
 std::optional<PointLight> World::getLight() const
 {
 	return this->light;
 }
 
+std::optional<AreaLight> World::getAreaLight() const
+{
+	return areaLight;
+}
+
 void World::setLight(const PointLight& light)
 {
 	this->light = std::optional<PointLight>(light);
+	this->areaLight = std::nullopt;
+}
+
+void World::setLight(const AreaLight& light)
+{
+	this->light = std::nullopt;
+	this->areaLight.emplace(light);
 }
 
 void World::addObject(Shape& shape)
@@ -248,6 +440,7 @@ Comps prepareComputations(Intersection intersection, Ray ray)
 	comps.normalv = comps.object->normalAt(comps.point);
 	comps.eyev = -ray.direction;
 
+
 	if (Tuples::dot(comps.normalv, comps.eyev) < 0)
 	{
 		comps.inside = true;
@@ -256,40 +449,55 @@ Comps prepareComputations(Intersection intersection, Ray ray)
 	else
 		comps.inside = false;
 
-	comps.overPoint = comps.point + comps.normalv * 0.01;
+	comps.reflectv = reflect(ray.direction, comps.normalv);
+	comps.overPoint = comps.point + comps.normalv * 0.0001;
 
 	return comps;
 }
 
-Colors::Color shadeHit(const World& world, const Comps& comps)
+Colors::Color shadeHit(const World& world, const Comps& comps, int remaining)
 {
+	Colors::Color surface;
 
+	if (world.getAreaLight().has_value())
+	{
+		auto areaLight = world.getAreaLight().value();
+		float intensity = intensityAt(areaLight, comps.overPoint, world);
+		surface = lighting(comps.object->material, areaLight,
+			comps.overPoint, comps.eyev, comps.normalv, intensity);
+	}
+	else if (world.getLight().has_value())
+	{
+		auto pointLight = world.getLight().value();
+		float intensity = intensityAt(pointLight, comps.overPoint, world);
+		surface = lighting(comps.object->material, pointLight,
+			comps.overPoint, comps.eyev, comps.normalv, intensity);
+	}
+	else
+	{
+		surface = Colors::Color(0, 0, 0);
+	}
 
-	auto shadowed = isShadowed(world, comps.overPoint);
-
-	return lighting(comps.object->material
-		, world.getLight().value()
-		, comps.overPoint
-		, comps.eyev
-		, comps.normalv
-		, shadowed);
+	Colors::Color reflected = reflectedColor(world, comps, remaining);
+	return surface + reflected;
 }
 
-Colors::Color colorAt(const World& world, const Ray& ray)
+Colors::Color colorAt(const World& world, const Ray& ray, int remaining)
 {
-
-
 	auto ix = intersectWorld(world, ray);
 	if (ix.empty()) return Colors::Color(0, 0, 0);
 	auto i = hit(ix);
 	if (i == std::nullopt) return Colors::Color(0, 0, 0);
 	auto comps = prepareComputations(i.value(), ray);
-	return shadeHit(world, comps);
+	return shadeHit(world, comps, remaining);
 }
 
-bool isShadowed(const World& world, const Tuples::Tuple& point)
+bool isShadowed(const World& world
+	, const Tuples::Tuple& lightPosition
+	, const Tuples::Tuple& point)
 {
-	auto v = world.getLight().value().position - point;
+	//auto v = world.getLight().value().position - point;
+	auto v = lightPosition - point;
 	auto distance = Tuples::magnitude(v);
 	auto direction = Tuples::normalize(v);
 	Ray r{ point, direction };
@@ -304,6 +512,66 @@ bool isShadowed(const World& world, const Tuples::Tuple& point)
 	return false;
 }
 
+bool isShadowed(const World& world, const Tuples::Tuple& point)
+{
+	auto v = world.getLight().value().position - point; //light position
+	auto distance = Tuples::magnitude(v);
+	auto direction = Tuples::normalize(v);
+	Ray r{ point, direction };
+	auto intersections = intersectWorld(world, r);
+	auto h = hit(intersections);
+
+	if (h.has_value() && h.value().t < distance)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+Colors::Color reflectedColor(const World& world
+	, const Comps& comps, int remaining)
+{
+	if (comps.object->material.reflective == 0 || remaining <= 0)
+		return Colors::Color(0, 0, 0);
+
+	Ray reflectedRay(comps.overPoint, comps.reflectv);
+	Colors::Color color = colorAt(world, reflectedRay, remaining - 1);
+
+	return color * comps.object->material.reflective;
+}
+
+float intensityAt(const PointLight& light
+	, const Tuples::Tuple& point
+	, const World& world)
+{
+	if (isShadowed(world, light.position, point))
+		return 0.0f;
+
+	return 1.0f;
+}
+
+float intensityAt(
+	const AreaLight& light
+	, const Tuples::Tuple& point
+	, const World& world
+)
+{
+	float total = 0.0f;
+	for (int v{ 0 }; v < light.vsteps; v++)
+	{
+		for (int u{ 0 }; u < light.usteps; u++)
+		{
+			auto lightPos = light.pointOnLight(u, v);
+			if (!isShadowed(world, lightPos, point))
+				total += 1;
+		}
+	}
+
+	return static_cast<float>(total) / static_cast<float>(light.samples);
+}
+
+
 
 Comps::Comps()
 	: t{}
@@ -313,4 +581,71 @@ Comps::Comps()
 	, object{}
 	, overPoint{}
 	, inside{false}
+	, reflectv{}
 { }
+
+AreaLight::AreaLight(const Tuples::Tuple& corner
+	, const Tuples::Tuple& fullUvec
+	, int usteps
+	, const Tuples::Tuple& fullVvec
+	, int vSteps
+	, const Colors::Color& intensity
+	, JitterRNG jitterBy
+	)
+	
+	:corner(corner)
+	, uvec(fullUvec / usteps)
+	, usteps(usteps)
+	, vvec(fullVvec / vSteps)
+	, vsteps(vSteps)
+	, intensity(intensity)
+	, samples(usteps* vSteps)
+	, position(corner + (fullVvec + fullUvec) / 2)
+	, jitterBy(jitterBy)
+{
+	samples = usteps * vsteps;
+}
+
+Tuples::Tuple AreaLight::pointOnLight(int u, int v) const
+{
+	int index = (v * usteps + u);
+	return corner + uvec * (u + jitterBy.get(index))
+		+ vvec * (v + jitterBy.get(index * 2 + 1));
+}
+
+JitterRNG::JitterRNG()
+	: size(5)
+	, values{}
+{
+	values.reserve(size);
+	values.assign(size, 0.0f);
+
+	std::random_device rd{};
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dist{ 0.0f,1.0f };
+
+
+	for (int i{ 0 }; i < size; i++)
+		values[i] = dist(gen);
+}
+
+JitterRNG::JitterRNG(unsigned int size)
+	: size(size)
+{
+	values.reserve(size);
+	values.assign(size, 0.0f);
+	
+	std::random_device rd{};
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dist{ 0.0f,1.0f };
+
+	for (int i{ 0 }; i < size; i++)
+		values[i] = dist(gen);
+
+	std::cout << "random values generated: ";
+	for (const auto& i : values)
+	{
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+}

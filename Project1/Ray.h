@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <optional>
 
+#include <random>
+
 struct Ray
 {
 
@@ -55,13 +57,44 @@ struct Shape
 	Matrix4 transform{Matrix4::identity()};
 	Material material{};
 
+	virtual ~Shape() = default;
+	
 	virtual std::vector<float> localIntersect(const Ray& ray) const = 0;
-	virtual Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const = 0;
+	virtual Tuples::Tuple localNormalAt(const Tuples::Tuple& localPoint) const = 0;
+
+	Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const
+	{
+		auto inv = this->transform.inverse();
+
+		Tuples::Tuple localPoint = inv * worldPoint;
+		Tuples::Tuple localNormal = this->localNormalAt(localPoint);
+
+		Tuples::Tuple worldNormal = inv.transpose() * localNormal;
+		worldNormal.w = 0;
+
+		return Tuples::normalize(worldNormal);
+	}
+
 	virtual unsigned int hash() const = 0;
 
 };
 
 	
+struct Plane : public Shape
+{
+
+	Plane();
+
+	std::vector<float> localIntersect(const Ray& ray) const override;
+
+	Tuples::Tuple localNormalAt(const Tuples::Tuple& localPoint) const override;
+
+	unsigned int hash() const override
+	{
+		return 1;
+	}
+};
+
 struct Sphere : public Shape
 {
 
@@ -69,14 +102,15 @@ struct Sphere : public Shape
 	float radius{};
 
 	Sphere();
+
 	Sphere(Tuples::Tuple position, float radius);
 
-	unsigned int hash() const override
-	{
-		return 1;
-	}
+	unsigned int hash() const override;
 
 	std::vector<float> localIntersect(const Ray& ray) const override;
+
+	Tuples::Tuple localNormalAt(const Tuples::Tuple& localPoint) const override;
+
 	inline void setTransform(Matrix4 transform_)
 	{
 		transform = transform_;
@@ -114,6 +148,47 @@ std::optional<Intersection> hit(const std::vector<Intersection>& ints);
 
 Tuples::Tuple reflect(const Tuples::Tuple& in, const Tuples::Tuple& normal);
 
+struct JitterRNG
+{
+	std::vector<float> values{};
+
+	unsigned int size{};
+
+	JitterRNG();
+	JitterRNG(unsigned int size);
+
+	inline float get(unsigned int index) const
+	{
+		return values[index % size];
+	}
+
+};
+
+struct AreaLight
+{
+	Tuples::Tuple uvec{};
+	Tuples::Tuple corner{};
+	float uedge{};
+	int usteps{};
+	int vsteps{};
+	int cellNum{};
+	int samples{};
+	Tuples::Tuple position{};
+	Tuples::Tuple vvec{};
+	Colors::Color intensity{};
+	JitterRNG jitterBy{};
+
+	AreaLight(const Tuples::Tuple& corner
+		, const Tuples::Tuple& fullUvec
+		, int usteps
+		, const Tuples::Tuple& fullVvec
+		, int vSteps
+		, const Colors::Color& intensity
+		, JitterRNG jitterBy);
+
+	Tuples::Tuple pointOnLight(int u, int v) const;
+};
+
 Colors::Color lighting(const Material& material
 	, const PointLight& light
 	, const Tuples::Tuple& point
@@ -121,16 +196,35 @@ Colors::Color lighting(const Material& material
 	, const Tuples::Tuple& normalv
 	, bool inShadow);
 
+Colors::Color lighting(const Material& material
+	, const AreaLight& light
+	, const Tuples::Tuple& point
+	, const Tuples::Tuple& eyev
+	, const Tuples::Tuple& normalv
+	, float intensity);
+
+Colors::Color lighting(const Material& material
+	, const PointLight& light
+	, const Tuples::Tuple& point
+	, const Tuples::Tuple& eyev
+	, const Tuples::Tuple& normalv
+	, float intensity);
+
+
 class World
 {
 public:
 
 	World();
 	World(std::initializer_list<Shape*> objects);
-	World(std::initializer_list<Shape*> objects, const PointLight& light);
+	World(std::initializer_list<Shape*> objects, const PointLight& light_);
+	World(std::initializer_list<Shape*> objects, const AreaLight& light_);
 
 	std::optional<PointLight> getLight() const;
+	std::optional<AreaLight> getAreaLight() const;
+
 	void setLight(const PointLight& light);
+	void setLight(const AreaLight& light);
 
 	void addObject(Shape& shape);
 	bool contains(Shape& shape);
@@ -145,7 +239,7 @@ public:
 	std::vector<Shape*> objects{};
 private:
 	std::optional<PointLight> light{};
-
+	std::optional<AreaLight> areaLight{};
 };
 
 
@@ -160,13 +254,31 @@ struct Comps
 	Shape *object;
 	bool inside{};
 	Tuples::Tuple overPoint{};
+	
+	Tuples::Tuple reflectv{};
 
 	Comps();
 
 };
 
 Comps prepareComputations(Intersection intersection, Ray ray);
-Colors::Color shadeHit(const World& world, const Comps& comps);
-Colors::Color colorAt(const World& world, const Ray& ray);
+Colors::Color shadeHit(const World& world, const Comps& comps, int remaining = 5);
+Colors::Color colorAt(const World& world, const Ray& ray, int remaining = 5);
+
 
 bool isShadowed(const World& world, const Tuples::Tuple& point);
+bool isShadowed(const World& world
+	, const Tuples::Tuple& lightPosition
+	, const Tuples::Tuple& point);
+
+Colors::Color reflectedColor(const World& world, const Comps& comps, int remaining = 5);
+
+float intensityAt(const PointLight& light
+	, const Tuples::Tuple& point
+	, const World& world);
+
+float intensityAt(
+	const AreaLight& light
+	, const Tuples::Tuple& point
+	, const World& world
+);

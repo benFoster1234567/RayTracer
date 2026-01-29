@@ -1,5 +1,5 @@
 // main.cpp
-#define RUN_TESTS
+//#define RUN_TESTS
 #ifdef RUN_TESTS
 #define CATCH_CONFIG_MAIN
 #include "catch_amalgamated.hpp"
@@ -27,50 +27,39 @@
 
 int main()
 {
-	Sphere floor{};
-	floor.setTransform(Matrix4::scale(10, 0.01, 10));
+	Plane floor{};
+	floor.transform = Matrix4::scale(10, 1, 10);
 	floor.material = Material();
 	floor.material.color = Colors::Color(1, 0.9, 0.9);
 	floor.material.specular = 0;
+	floor.material.reflective = 0.3f;
+	floor.material.pattern = stripePattern(Colors::white(), Colors::Color(0.7, 0.7, 0.7));
 
-	Sphere leftWall{};
-	leftWall.setTransform
-	(
-		Matrix4::translation(0, 0, 5) *
-		Matrix4::rotationY(-std::numbers::pi / 4) *
-		Matrix4::rotationX(std::numbers::pi / 2) *
-		Matrix4::scale(10, 0.01, 10)
-	);
-
-	leftWall.material = floor.material;
-
-	Sphere rightWall{};
-
-	rightWall.setTransform
-	(
-		Matrix4::translation(0, 0, 5) *
-		Matrix4::rotationY(std::numbers::pi / 4) *
-		Matrix4::rotationX(std::numbers::pi / 2) *
-		Matrix4::scale(10, 0.01, 10)
-	);
-	rightWall.material = floor.material;
+	Plane backWall = Plane{};
+	backWall.material = floor.material;
+	backWall.transform = Matrix4::translation(0, 0, -5) * Matrix4::rotationX(-std::numbers::pi / 2);
 
 	Sphere middle{};
 	middle.setTransform(Matrix4::translation(-0.5, 1, 0.5));
+	middle.material = floor.material;
+	middle.material.specular = 0.7;
+
 	middle.material = Material();
 	middle.material.color = Colors::Color(0.1, 1, 0.5);
 	middle.material.diffuse = 0.7;
-	middle.material.specular = 0.3;
+	middle.material.specular = 0.1;
+	middle.material.shininess = 20;
 
 	Sphere right{};
 	right.setTransform(
-		Matrix4::translation(1.5, 1, 0.5) *
+		Matrix4::translation(1.5, 0.5, 0.5) *
 		Matrix4::scale(0.5, 0.5, 0.5)
 	);
 	right.material = Material{};
 	right.material.color = Colors::Color(0.5, 1, 0.1);
 	right.material.diffuse = 0.7;
 	right.material.specular = 0.3;
+	right.material.reflective = 0.7f;
 
 	Sphere left{};
 	left.setTransform
@@ -83,13 +72,33 @@ int main()
 	left.material.diffuse = 0.7;
 	left.material.specular = 0.3;
 
-	World world{ {&floor, &leftWall, &rightWall, &middle, &right, &left}
-	, PointLight(Tuples::Point(-10,10,-10), Colors::Color(1,1,1)) };
+	Tuples::Tuple lightPoint = Tuples::Point(-2, 8, -2);  // Above scene, closer
+	Tuples::Tuple uvec = Tuples::Vector(4, 0, 0);   // 4 units wide (don't normalize!)
+	Tuples::Tuple vvec = Tuples::Vector(0, 0, 4);
+	JitterRNG jitterBy(100);
+	AreaLight light(
+		lightPoint
+		, uvec
+		, 10
+		, vvec
+		, 10
+		, Colors::Color(1, 1, 1)
+		, jitterBy
+	);
+
+	//World world{ {&floor, &middle, &right, &left }
+	//, PointLight(Tuples::Point(-10,10,-10), Colors::Color(0.9,0.9,0.9)) };
+
+	World world{ {&floor, &middle, &right, &left }
+	, light };
+
 
 	Camera camera{ 512, 512, std::numbers::pi / 3 };
 	camera.transform = Matrix4::viewTransform(Tuples::Point(0, 1.5, -5)
 		, Tuples::Point(0, 1, 0)
 		, Tuples::Vector(0, 1, 0));
+	
+
 
 	ImageRenderer renderer(camera, world);
 	auto canvas = renderer.render();

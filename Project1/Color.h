@@ -9,6 +9,8 @@
 
 namespace Colors
 {
+
+
 	struct Color
 	{
 		float r, g, b;
@@ -23,6 +25,16 @@ namespace Colors
 		{
 		}
 	};
+
+	inline Color black()
+	{
+		return Color(0, 0, 0);
+	}
+
+	inline Color white()
+	{
+		return Color(1, 1, 1);
+	}
 
 	inline Color hadamardProduct(const Color& c1, const Color& c2) noexcept
 	{
