@@ -15,8 +15,8 @@
 
 # external libraries
 
-catch_amalgamated.cpp
-catch_amalgamated.hpp
+/Project1/catch_amalgamated.cpp
+/Project1/catch_amalgamated.hpp
 
 # Mono auto generated files
 mono_crash.*
