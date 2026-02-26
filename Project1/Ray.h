@@ -1,9 +1,11 @@
 #pragma once
+
 #include "Common.h"
 #include "Color.h"
 #include "Matrix.h"
 #include "Tuple.h"
 #include "Material.h"
+
 #include <algorithm>
 #include <optional>
 
@@ -26,39 +28,13 @@ struct Ray
 };
 
 
-
-inline bool operator==(const Material& a, const Material& b)
-{
-	return
-		a.ambient == b.ambient &&
-		a.specular == b.specular &&
-		a.diffuse == b.diffuse &&
-		a.shininess == b.shininess &&
-		a.color == b.color;
-}
-
-struct PointLight
-{
-	Tuples::Tuple position{};
-	Colors::Color intensity{};
-
-	PointLight();
-	PointLight(const Tuples::Tuple& position, const Colors::Color& intensity);
-
-};
-
-inline bool operator==(const PointLight& a, const PointLight& b)
-{
-	return a.intensity == b.intensity && a.position == b.position;
-}
-
 struct Shape
 {
-	Matrix4 transform{Matrix4::identity()};
+	Matrix4 transform{ Matrix4::identity() };
 	Material material{};
 
 	virtual ~Shape() = default;
-	
+
 	virtual std::vector<float> localIntersect(const Ray& ray) const = 0;
 	virtual Tuples::Tuple localNormalAt(const Tuples::Tuple& localPoint) const = 0;
 
@@ -79,7 +55,6 @@ struct Shape
 
 };
 
-	
 struct Plane : public Shape
 {
 
@@ -126,17 +101,31 @@ inline bool operator==(const Sphere& a, const Sphere& b)
 		&& a.transform == b.transform;
 }
 
-
 struct Intersection
 {
-	
+
 	float t{};
 
-	Shape *object;
+	Shape* object;
 
-	Intersection(float t_, Shape *object_);
+	Intersection(float t_, Shape* object_);
 
 };
+
+struct PointLight
+{
+	Tuples::Tuple position{};
+	Colors::Color intensity{};
+
+	PointLight();
+	PointLight(const Tuples::Tuple& position, const Colors::Color& intensity);
+
+};
+
+inline bool operator==(const PointLight& a, const PointLight& b)
+{
+	return a.intensity == b.intensity && a.position == b.position;
+}
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list);
 
@@ -159,6 +148,8 @@ struct JitterRNG
 
 	inline float get(unsigned int index) const
 	{
+		if (size == 0)
+			return 0.5f;
 		return values[index % size];
 	}
 
@@ -211,6 +202,14 @@ Colors::Color lighting(const Material& material
 	, float intensity);
 
 
+struct Triangle : public Shape
+{
+	Tuples::Tuple p1{}, p2{}, p3{};
+	Triangle();
+	Triangle(Tuples::Tuple p1, Tuples::Tuple p2, Tuples::Tuple p3);
+};
+
+
 class World
 {
 public:
@@ -237,13 +236,14 @@ public:
 	static World& defaultWorld();
 
 	std::vector<Shape*> objects{};
+
 private:
 	std::optional<PointLight> light{};
 	std::optional<AreaLight> areaLight{};
 };
 
-
 std::vector<Intersection> intersectWorld(const World& world, const Ray& ray);
+
 
 struct Comps
 {
@@ -251,10 +251,10 @@ struct Comps
 	Tuples::Tuple point{};
 	Tuples::Tuple eyev{};
 	Tuples::Tuple normalv{};
-	Shape *object;
+	Shape* object;
 	bool inside{};
 	Tuples::Tuple overPoint{};
-	
+
 	Tuples::Tuple reflectv{};
 
 	Comps();

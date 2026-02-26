@@ -2064,4 +2064,98 @@ TEST_CASE("Soft Shadows", "[SoftShadows]")
 	//	intensity = intensityAt(light, pt, w);
 	//	CHECK(intensity == 1.0f);
 	//}
+
+	SECTION("lighting() samples the area light")
+	{
+		auto corner = Tuples::Point(-0.5, -0.5, -5);
+		auto v1 = Tuples::Vector(1, 0, 0);
+		auto v2 = Tuples::Vector(0, 1, 0);
+		auto light = AreaLight(corner, v1, 2, v2, 2, Colors::Color(1, 1, 1), JitterRNG(0));
+
+		auto shape = Sphere();
+		shape.material.ambient = 0.1f;
+		shape.material.diffuse = 0.9f;
+		shape.material.specular = 0.0f;
+		shape.material.color = Colors::Color(1, 1, 1);
+
+		auto eye = Tuples::Point(0, 0, -5);
+
+		// Test case 1: point(0, 0, -1)
+		auto pt = Tuples::Point(0, 0, -1);
+		auto eyev = Tuples::normalize(eye - pt);
+		auto normalv = Tuples::Vector(pt.x, pt.y, pt.z);
+		auto result = lighting(shape.material, light, pt, eyev, normalv, 1.0f);
+		CHECK(result == Colors::Color(0.9965, 0.9965, 0.9965));
+
+		// Test case 2: point(0, 0.7071, -0.7071)
+		pt = Tuples::Point(0, 0.7071, -0.7071);
+		eyev = Tuples::normalize(eye - pt);
+		normalv = Tuples::Vector(pt.x, pt.y, pt.z);
+		result = lighting(shape.material, light, pt, eyev, normalv, 1.0f);
+		CHECK(result == Colors::Color(0.6232, 0.6232, 0.6232));
+	}
+}
+
+//TEST_CASE("Triangles", "[Triangles]")
+//{
+//	SECTION("Constructing a triangle")
+//	{
+//
+//		auto p1 = Tuples::Point(0, 1, 0);
+//		auto p2 = Tuples::Point(-1, 0, 0);
+//		auto p3 = Tuples::Point(1, 0, 0);
+//		auto t = Triangle(p1, p2, p3);
+//
+//		CHECK(t.p1 == p1);
+//		CHECK(t.p2 == p2);
+//		CHECK(t.p3 == p3);
+//		
+//		CHECK(t.e1 == Tuples::Vector(-1, -1, 0));
+//		CHECK(t.e2 == Tuples::Vector(1, -1, 0));
+//		CHECK(t.normal == Tuples::Vector(0, 0, -1));
+//	}
+//
+//	SECTION("Normal vector on a triangle")
+//	{
+//		auto t = Triangle(Tuples::Point(0, 1, 0), Tuples::Point(-1, 0, 0), Tuples::Point(1, 0, 0));
+//
+//	}
+//}
+
+#include "YamlParser.h"
+
+TEST_CASE("testing yaml parser", "[GayParse]")
+{
+	SECTION("testing splitLine")
+	{
+		std::string line = "                Scale: {x: 2, y: 2, z: 2} ";
+		auto strings = Parser::splitLine(line);
+		CHECK(std::get<0>(strings) == "Scale");
+		CHECK(std::get<1>(strings) == " {x: 2, y: 2, z: 2} ");
+		CHECK(std::get<2>(strings) == 16);
+	}
+
+	SECTION("Testing splitline with float")
+	{
+		std::string line = "                Ambient: 0.1 ";
+
+		auto strings = Parser::splitLine(line);
+
+		CHECK(std::get<0>(strings) == "Ambient");
+		CHECK(std::get<1>(strings) == " 0.1 ");
+		CHECK(std::get<2>(strings) == 16);
+
+	}
+
+	SECTION("Testing splitline with only key")
+	{
+		std::string line = "    Objects: ";
+
+		auto strings = Parser::splitLine(line);
+		
+		CHECK(std::get<0>(strings) == "Objects");
+		CHECK(std::get<1>(strings) == " ");
+		CHECK(std::get<2>(strings) == 4);
+
+	}
 }

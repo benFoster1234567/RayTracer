@@ -29,3 +29,14 @@ struct Material
 Pattern stripePattern(Colors::Color a, Colors::Color b);
 Colors::Color stripeAt(const Pattern& pattern, const Tuples::Tuple& point);
 Colors::Color checkerAt(const Pattern& pattern, const Tuples::Tuple& point);
+
+inline bool operator==(const Material& a, const Material& b)
+{
+	return
+		a.ambient == b.ambient &&
+		a.specular == b.specular &&
+		a.diffuse == b.diffuse &&
+		a.shininess == b.shininess &&
+		a.color == b.color;
+}
+

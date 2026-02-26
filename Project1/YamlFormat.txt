@@ -1,0 +1,26 @@
+--We need a scene with a camera, a light and a sphere. Sphere is scaled to 2 and is red with a material.
+--We also need a material for the sphere and a plane. The plane should be scaled and the plane should 
+have the checkered pattern
+
+Example:
+
+Camera:
+
+World:
+    Objects: 
+        - Sphere:
+            Transform:
+                Scale: {x: 2, y: 2, z: 2} 
+            Material: 
+                Ambient: 0.1 
+                Diffuse: 0.9 
+                Specular: 0.9 
+                Shininess: 200 
+                Color: {r: 1, g: 0, b: 0} 
+    AreaLight: 
+        corner: {x: y: z:} 
+        uVector: {x: y: z:} 
+        uSteps: 10 
+        vVector: {x: y: z:} 
+        vSteps: 10 
+        intensity: {r: g: b:} 
