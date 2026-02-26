@@ -1637,13 +1637,9 @@ TEST_CASE("Test Shape - Chapter 9", "[Shape]")
 			return std::vector<float>{};
 		}
 
-		Tuples::Tuple normalAt(const Tuples::Tuple& worldPoint) const override
+		Tuples::Tuple localNormalAt(const Tuples::Tuple& localPoint) const override
 		{
-			Tuples::Tuple objectPoint = this->transform.inverse() * worldPoint;
-			Tuples::Tuple objectNormal = Tuples::Vector(objectPoint.x, objectPoint.y, objectPoint.z);
-			Tuples::Tuple worldNormal = this->transform.inverse().transpose() * objectNormal;
-			worldNormal.w = 0;
-			return Tuples::normalize(worldNormal);
+			return Tuples::Vector(localPoint.x, localPoint.y, localPoint.z);
 		}
 
 		unsigned int hash() const override
@@ -1720,5 +1716,446 @@ TEST_CASE("Test Shape - Chapter 9", "[Shape]")
 		auto n = s.normalAt(Tuples::Point(0, std::sqrt(2.0f) / 2, -std::sqrt(2.0f) / 2));
 
 		REQUIRE(n == Tuples::Vector(0, 0.97014, -0.24254));
+	}
+}
+
+TEST_CASE("Implementing a Plane", "[Plane]") 
+{
+	SECTION("The normal of a plane is constant everywhere")
+	{
+		auto p = Plane{};
+		auto n1 = p.normalAt(Tuples::Point(0, 0, 0));
+		auto n2 = p.normalAt(Tuples::Point(10, 0, -10));
+		auto n3 = p.normalAt(Tuples::Point(-5, 0, 150));
+
+		CHECK(n1 == Tuples::Vector(0, 1, 0));
+		CHECK(n2 == Tuples::Vector(0, 1, 0));
+		CHECK(n3 == Tuples::Vector(0, 1, 0));
+	}
+
+	SECTION(" intersect with a ray parallel to the plane ")
+	{
+		auto p = Plane();
+		auto r = Ray{ Tuples::Point(0,10,0), Tuples::Vector(0,0,1) };
+		auto xs = p.localIntersect(r);
+		CHECK(xs.size() == 0 );
+	}
+
+	SECTION("Intersect with a coplanar ray")
+	{
+		Plane p{};
+		Ray r{ Tuples::Point(0,0,0), Tuples::Vector(0,0,1) };
+		auto xs = p.localIntersect(r);
+		CHECK(xs.size() == 0);
+	}
+
+	SECTION("A ray intersecting a plane from above")
+	{
+		Plane p{};
+		Ray r{ Tuples::Point(0,1,0), Tuples::Vector(0,-1,0) };
+		auto xs = p.localIntersect(r);
+
+		REQUIRE(xs.size() == 1);
+		CHECK(xs[0] == 1.0f);
+	}
+
+	SECTION("A ray intersecting a plane from below")
+	{
+		Plane p{};
+		Ray r{ Tuples::Point(0,-1,0), Tuples::Vector(0,1,0) };
+		auto xs = p.localIntersect(r);
+		REQUIRE(xs.size() == 1);
+		CHECK(xs[0] == 1);
+	}
+
+}
+
+TEST_CASE("Implementing patterns", "[Pattern]")
+{
+
+	SECTION("Creating a stripe pattern")
+	{
+		auto pattern = stripePattern(Colors::white(), Colors::black());
+		CHECK(pattern.a == Colors::white());
+		CHECK(pattern.b == Colors::black());
+	}
+
+	SECTION("A stripe pattern is constant in y")
+	{
+		auto pattern = stripePattern(Colors::white(), Colors::black());
+
+		CHECK(stripeAt(pattern, Tuples::Point(0, 0, 0)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(0, 1, 0)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(0, 2, 0)) == Colors::white());
+
+	}
+
+	SECTION("A pattern is constant in z")
+	{
+		auto pattern = stripePattern(Colors::white(), Colors::black());
+
+		CHECK(stripeAt(pattern, Tuples::Point(0, 0, 0)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(0, 0, 1)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(0, 0, 2)) == Colors::white());
+	}
+
+	SECTION("A stripe pattern alternates in x")
+	{
+		auto pattern = stripePattern(Colors::white(), Colors::black());
+
+		CHECK(stripeAt(pattern, Tuples::Point(0, 0, 0)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(0.9, 0, 0)) == Colors::white());
+		CHECK(stripeAt(pattern, Tuples::Point(1, 0, 0)) == Colors::black());
+		CHECK(stripeAt(pattern, Tuples::Point(-0.1, 0, 0)) == Colors::black());
+		CHECK(stripeAt(pattern, Tuples::Point(-1, 0, 0)) == Colors::black());
+		CHECK(stripeAt(pattern, Tuples::Point(-1.1, 0, 0)) == Colors::white());
+	}
+
+	SECTION("lighting with a pattern applied")
+	{
+		auto p = stripePattern(Colors::white(), Colors::black());
+
+		Material m{};
+
+		m.pattern = p;
+		m.ambient = 1;
+		m.diffuse = 0;
+		m.specular = 0;
+		auto eyev = Tuples::Vector(0, 0, -1);
+		auto normalv = Tuples::Vector(0, 0, -1);
+
+		PointLight light{ Tuples::Point(0,0,-10), Colors::Color(1,1,1) };
+		auto c1 = lighting(m, light, Tuples::Point(0.9, 0, 0), eyev, normalv, false);
+		auto c2 = lighting(m, light, Tuples::Point(1.1, 0, 0), eyev, normalv, false);
+
+		CHECK(c1 == Colors::Color(1, 1, 1));
+		CHECK(c2 == Colors::Color(0, 0, 0));
+	}
+}
+
+TEST_CASE("Reflections ", "[Reflection]")
+{
+	SECTION("Reflectivity for the default material")
+	{
+		Material m{};
+		CHECK(m.reflective == 0.0f);
+	}
+
+	SECTION("Precomputing the reflection vector")
+	{
+		Plane shape{};
+		Ray r{ Tuples::Point(0,1,-1), Tuples::Vector(0,-sqrt(2) / 2, sqrt(2) / 2 )};
+		Intersection i{ (float)sqrt(2), &shape };
+		auto comps = prepareComputations(i, r);
+		CHECK(comps.reflectv == Tuples::Vector(0, sqrt(2) / 2, sqrt(2) / 2));
+	}
+
+	SECTION("Strike a nonreflective surface")
+	{
+		auto w = World::defaultWorld();
+		Ray r{ Tuples::Point(0,0,0), Tuples::Vector(0,0,1) };
+		auto shape = w.objects[1];
+		shape->material.ambient = 1;
+		Intersection i{ 1.0f, shape };
+		auto comps = prepareComputations(i, r);
+		auto color = reflectedColor(w, comps);
+		CHECK(color == Colors::Color(0, 0, 0));
+	}
+
+	SECTION("Strike a reflective surface")
+	{
+		auto w = World::defaultWorld();
+		auto plane = Plane();
+		plane.material.reflective = 0.5f;
+		plane.transform = Matrix4::translation(0, -1, 0);
+		w.addObject(plane);
+		Ray r(Tuples::Point(0, 0, -3), Tuples::Vector(0, -sqrt(2) / 2, sqrt(2) / 2));
+		Intersection i(sqrt(2), &plane);
+		auto comps = prepareComputations(i, r);
+		auto color = reflectedColor(w, comps);
+
+		std::cout << color.r << ", " << color.g << ", " << color.b;
+
+		CHECK(color == Colors::Color(0.19032, 0.2379, 0.14274));
+	}
+
+	SECTION("The reflected color at the maximum recursive depth")
+	{
+		auto w = World::defaultWorld();
+		auto plane = Plane();
+		plane.material.reflective = 0.5f;
+		plane.transform = Matrix4::translation(0, -1, 0);
+		w.addObject(plane);
+		Ray r(Tuples::Point(0, 0, -3), Tuples::Vector(0, -sqrt(2) / 2, sqrt(2) / 2));
+		Intersection i(sqrt(2), &plane);
+		auto comps = prepareComputations(i, r);
+		auto color = reflectedColor(w, comps, 0);  // remaining = 0
+		CHECK(color == Colors::Color(0, 0, 0));
+	}
+
+	SECTION("The reflected color for a reflective material")
+	{
+		auto w = World::defaultWorld();
+		auto plane = Plane();
+		plane.material.reflective = 0.5f;
+		plane.transform = Matrix4::translation(0, -1, 0);
+		w.addObject(plane);
+		Ray r(Tuples::Point(0, 0, -3), Tuples::Vector(0, -sqrt(2) / 2, sqrt(2) / 2));
+		Intersection i(sqrt(2), &plane);
+		auto comps = prepareComputations(i, r);
+		auto color = shadeHit(w, comps, 1);  // remaining = 1
+		CHECK(color == Colors::Color(0.87677, 0.92436, 0.82918));
+	}
+}
+
+TEST_CASE("Soft Shadows", "[SoftShadows]")
+{
+	SECTION("is_shadow tests for occlusion between two points")
+	{
+		auto w = World::defaultWorld();
+		auto lightPosition = Tuples::Point(-10, -10, -10);
+
+		auto test = [](const World& world
+			, const Tuples::Tuple& lightPos
+			, const Tuples::Tuple& point
+			, bool result) {
+				CHECK(isShadowed(world, lightPos, point) == result);
+			};
+
+		test(w, lightPosition
+			, Tuples::Point(-10, -10, -10)
+			, false);
+		
+		test(w, lightPosition
+			, Tuples::Point(10, 10, 10)
+			, true);
+
+
+		test(w, lightPosition
+			, Tuples::Point(-20, -20, -20)
+			, false);
+
+
+		test(w, lightPosition
+			, Tuples::Point(-5, -5, -5)
+			, false);
+	}
+
+	SECTION("Point lights evaluate the light intensity at a given point")
+	{
+		auto test = [](const Tuples::Tuple& point, float result)
+			{
+				auto w = World::defaultWorld();
+				auto light = w.getLight().value();
+				auto pt = point;
+				auto intensity = intensityAt(light, pt, w);
+				CHECK(intensity == result);
+			};
+
+		test(Tuples::Point(0.0f, 1.0001f, 0.0f), 1.0f);
+		test(Tuples::Point(-1.0001f, 0.0f, 0.0f), 1.0f);
+		test(Tuples::Point(0.0f, 0.0f, -1.0001f), 1.0f);
+		test(Tuples::Point(0.0f, 0.0f, 1.0001f), 0.0f);
+		test(Tuples::Point(1.0001f, 0.0f, 0.0f), 0.0f);
+		test(Tuples::Point(0.0f, -1.0001f, 0.0f), 0.0f);
+		test(Tuples::Point(0.0f, 0.0f, 0.0f), 0.0f);
+	}
+
+	SECTION("lighting() uses light intensity to attenuate color")
+	{
+		auto test = [](float intensity, const Colors::Color& result)
+			{
+				auto w = World::defaultWorld();
+				w.setLight(PointLight(Tuples::Point(0, 0, -10)
+					, Colors::Color(1, 1, 1)));
+				auto shape = w.objects[0];
+
+				shape->material.ambient = 0.1f;
+				shape->material.diffuse = 0.9f;
+				shape->material.specular = 0.0f;
+				shape->material.color = Colors::Color(1, 1, 1);
+
+				auto pt = Tuples::Point(0, 0, -1);
+				auto eyev = Tuples::Vector(0, 0, -1);
+				auto normalv = Tuples::Vector(0, 0, -1);
+
+				auto actual = lighting(shape->material
+					, w.getLight().value()
+					, pt, eyev, normalv, intensity);
+
+				CHECK(result == actual);
+			};
+	}
+
+	//SECTION("Creating an area light")
+	//{
+	//	auto corner = Tuples::Point(0, 0, 0);
+	//	auto v1 = Tuples::Vector(2, 0, 0);
+	//	auto v2 = Tuples::Vector(0, 0, 1);
+	//	auto light = AreaLight(corner, v1, 4, v2, 2, Colors::Color(1, 1, 1));
+
+	//	CHECK(light.corner == corner);
+	//	CHECK(light.uvec == Tuples::Vector(0.5, 0, 0));
+	//	CHECK(light.usteps == 4);
+	//	CHECK(light.vvec == Tuples::Vector(0, 0, 0.5));
+	//	CHECK(light.vsteps == 2);
+	//	CHECK(light.samples == 8);
+	//	CHECK(light.position == Tuples::Point(1, 0, 0.5));
+	//}
+
+	//SECTION("Finding a single point on an area light")
+	//{
+	//	auto corner = Tuples::Point(0, 0, 0);
+	//	auto v1 = Tuples::Vector(2, 0, 0);
+	//	auto v2 = Tuples::Vector(0, 0, 1);
+	//	auto light = AreaLight(corner, v1, 4, v2, 2, Colors::Color(1, 1, 1));
+
+	//	// Test case: u=0, v=0
+	//	auto pt = light.pointOnLight(0, 0);
+	//	CHECK(pt == Tuples::Point(0.25, 0, 0.25));
+
+	//	// Test case: u=1, v=0
+	//	pt = light.pointOnLight(1, 0);
+	//	CHECK(pt == Tuples::Point(0.75, 0, 0.25));
+
+	//	// Test case: u=0, v=1
+	//	pt = light.pointOnLight(0, 1);
+	//	CHECK(pt == Tuples::Point(0.25, 0, 0.75));
+
+	//	// Test case: u=2, v=0
+	//	pt = light.pointOnLight(2, 0);
+	//	CHECK(pt == Tuples::Point(1.25, 0, 0.25));
+
+	//	// Test case: u=3, v=1
+	//	pt = light.pointOnLight(3, 1);
+	//	CHECK(pt == Tuples::Point(1.75, 0, 0.75));
+	//}
+
+	//SECTION("The area light intensity function")
+	//{
+	//	auto w = World::defaultWorld();
+	//	auto corner = Tuples::Point(-0.5, -0.5, -5);
+	//	auto v1 = Tuples::Vector(1, 0, 0);
+	//	auto v2 = Tuples::Vector(0, 1, 0);
+	//	auto light = AreaLight(corner, v1, 2, v2, 2, Colors::Color(1, 1, 1));
+
+	//	// Test case: point(0, 0, 2) - fully shadowed
+	//	auto pt = Tuples::Point(0, 0, 2);
+	//	auto intensity = intensityAt(light, pt, w);
+	//	CHECK(intensity == 0.0f);
+
+	//	// Test case: point(1, -1, 2) - 1 of 4 samples visible
+	//	pt = Tuples::Point(1, -1, 2);
+	//	intensity = intensityAt(light, pt, w);
+	//	CHECK(intensity == 0.25f);
+
+	//	// Test case: point(1.5, 0, 2) - 2 of 4 samples visible
+	//	pt = Tuples::Point(1.5, 0, 2);
+	//	intensity = intensityAt(light, pt, w);
+	//	CHECK(intensity == 0.5f);
+
+	//	// Test case: point(1.25, 1.25, 3) - 3 of 4 samples visible
+	//	pt = Tuples::Point(1.25, 1.25, 3);
+	//	intensity = intensityAt(light, pt, w);
+	//	CHECK(intensity == 0.75f);
+
+	//	// Test case: point(0, 0, -2) - fully lit (all 4 samples visible)
+	//	pt = Tuples::Point(0, 0, -2);
+	//	intensity = intensityAt(light, pt, w);
+	//	CHECK(intensity == 1.0f);
+	//}
+
+	SECTION("lighting() samples the area light")
+	{
+		auto corner = Tuples::Point(-0.5, -0.5, -5);
+		auto v1 = Tuples::Vector(1, 0, 0);
+		auto v2 = Tuples::Vector(0, 1, 0);
+		auto light = AreaLight(corner, v1, 2, v2, 2, Colors::Color(1, 1, 1), JitterRNG(0));
+
+		auto shape = Sphere();
+		shape.material.ambient = 0.1f;
+		shape.material.diffuse = 0.9f;
+		shape.material.specular = 0.0f;
+		shape.material.color = Colors::Color(1, 1, 1);
+
+		auto eye = Tuples::Point(0, 0, -5);
+
+		// Test case 1: point(0, 0, -1)
+		auto pt = Tuples::Point(0, 0, -1);
+		auto eyev = Tuples::normalize(eye - pt);
+		auto normalv = Tuples::Vector(pt.x, pt.y, pt.z);
+		auto result = lighting(shape.material, light, pt, eyev, normalv, 1.0f);
+		CHECK(result == Colors::Color(0.9965, 0.9965, 0.9965));
+
+		// Test case 2: point(0, 0.7071, -0.7071)
+		pt = Tuples::Point(0, 0.7071, -0.7071);
+		eyev = Tuples::normalize(eye - pt);
+		normalv = Tuples::Vector(pt.x, pt.y, pt.z);
+		result = lighting(shape.material, light, pt, eyev, normalv, 1.0f);
+		CHECK(result == Colors::Color(0.6232, 0.6232, 0.6232));
+	}
+}
+
+//TEST_CASE("Triangles", "[Triangles]")
+//{
+//	SECTION("Constructing a triangle")
+//	{
+//
+//		auto p1 = Tuples::Point(0, 1, 0);
+//		auto p2 = Tuples::Point(-1, 0, 0);
+//		auto p3 = Tuples::Point(1, 0, 0);
+//		auto t = Triangle(p1, p2, p3);
+//
+//		CHECK(t.p1 == p1);
+//		CHECK(t.p2 == p2);
+//		CHECK(t.p3 == p3);
+//		
+//		CHECK(t.e1 == Tuples::Vector(-1, -1, 0));
+//		CHECK(t.e2 == Tuples::Vector(1, -1, 0));
+//		CHECK(t.normal == Tuples::Vector(0, 0, -1));
+//	}
+//
+//	SECTION("Normal vector on a triangle")
+//	{
+//		auto t = Triangle(Tuples::Point(0, 1, 0), Tuples::Point(-1, 0, 0), Tuples::Point(1, 0, 0));
+//
+//	}
+//}
+
+#include "YamlParser.h"
+
+TEST_CASE("testing yaml parser", "[GayParse]")
+{
+	SECTION("testing splitLine")
+	{
+		std::string line = "                Scale: {x: 2, y: 2, z: 2} ";
+		auto strings = Parser::splitLine(line);
+		CHECK(std::get<0>(strings) == "Scale");
+		CHECK(std::get<1>(strings) == " {x: 2, y: 2, z: 2} ");
+		CHECK(std::get<2>(strings) == 16);
+	}
+
+	SECTION("Testing splitline with float")
+	{
+		std::string line = "                Ambient: 0.1 ";
+
+		auto strings = Parser::splitLine(line);
+
+		CHECK(std::get<0>(strings) == "Ambient");
+		CHECK(std::get<1>(strings) == " 0.1 ");
+		CHECK(std::get<2>(strings) == 16);
+
+	}
+
+	SECTION("Testing splitline with only key")
+	{
+		std::string line = "    Objects: ";
+
+		auto strings = Parser::splitLine(line);
+		
+		CHECK(std::get<0>(strings) == "Objects");
+		CHECK(std::get<1>(strings) == " ");
+		CHECK(std::get<2>(strings) == 4);
+
 	}
 }

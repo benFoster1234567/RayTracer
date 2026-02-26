@@ -140,18 +140,27 @@
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Ray.h" />
     <ClInclude Include="Tuple.h" />
+    <ClInclude Include="YamlParser.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Canvas.cpp" />
     <ClCompile Include="catch_amalgamated.cpp" />
     <ClCompile Include="Demo.cpp" />
+    <ClCompile Include="Lighting.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Ray.cpp" />
+    <ClCompile Include="Shapes.cpp" />
+    <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="Tuple.cpp" />
     <ClCompile Include="Tests.cpp" />
+    <ClCompile Include="YamlParser.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="README.txt" />
+    <Text Include="YamlFormat.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
