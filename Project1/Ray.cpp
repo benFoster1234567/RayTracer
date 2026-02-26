@@ -8,43 +8,7 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 	: origin{origin}, direction{direction}
 {}
 
-Sphere::Sphere()
-	: position{Tuples::Point(0,0,0)}
-	, radius(1.0f)
-{}
 
-
-Sphere::Sphere(Tuples::Tuple position, float radius)
-	: position{position}
-	, radius(radius)
-{}
-
-Tuples::Tuple Sphere::normalAt(const Tuples::Tuple& worldPoint) const
-{
-	Tuples::Tuple objectPoint{ this->transform.inverse() * worldPoint };
-	auto objectNormal = objectPoint - Tuples::Point(0, 0, 0);
-	auto worldNormal = this->transform.inverse().transpose() * objectNormal;
-	worldNormal.w = 0;
-	return normalize(worldNormal);
-}
-
-std::vector<float> Sphere::localIntersect(const Ray& ray) const
-{
-	Tuples::Tuple sphereToRay{ ray.origin - Tuples::Point(0,0,0) };
-	float a = Tuples::dot(ray.direction, ray.direction);
-	float b = 2 * Tuples::dot(ray.direction, sphereToRay);
-	float c = Tuples::dot(sphereToRay, sphereToRay) - 1;
-	float discriminant = (b * b) - (4 * a * c);
-
-	//neg discriminant, return an empty vector
-	if (discriminant < 0)
-		return std::vector<float>();
-
-	float t1 = (-b - sqrt(discriminant)) / (2 * a);
-	float t2 = (-b + sqrt(discriminant)) / (2 * a);
-
-	return std::vector<float>{t1, t2};
-}
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list)
 {
@@ -94,50 +58,6 @@ std::optional<Intersection> hit(const std::vector<Intersection>& ints)
 	return result;
 }
 
-Tuples::Tuple reflect(const Tuples::Tuple& in, const Tuples::Tuple& normal)
-{
-	return in - normal * 2 * dot(in, normal);
-}
-
-Colors::Color lighting(const Material& material
-	, const PointLight& light
-	, const Tuples::Tuple& point
-	, const Tuples::Tuple& eyev
-	, const Tuples::Tuple& normalv
-	, bool inShadow)
-{
-	Colors::Color diffuse{}, specular{};
-	float factor{};
-	auto effectiveColor = material.color * light.intensity;
-	auto lightv = Tuples::normalize(light.position - point);
-	auto ambient = effectiveColor * material.ambient;
-
-	auto lightDotNormal = Tuples::dot(lightv, normalv);
-
-	if (lightDotNormal < 0)
-	{
-		diffuse = Colors::Color(0, 0, 0);
-		specular = Colors::Color(0, 0, 0);
-	}
-
-	else
-	{
-		diffuse = effectiveColor * material.diffuse * lightDotNormal;
-		auto reflectv = reflect(-lightv, normalv);
-		auto reflectDotEye = Tuples::dot(reflectv, eyev);
-		if (reflectDotEye <= 0)
-		{
-			specular = Colors::Color(0, 0, 0);
-		}
-		else
-		{
-			factor = pow(reflectDotEye, material.shininess);
-
-			specular = light.intensity * material.specular * factor;
-		}
-	}
-	return (inShadow? ambient : ambient + diffuse + specular);
-}
 
 Intersection::Intersection(float t_, Shape *object_)
 	: t{t_}, object{object_}
@@ -166,20 +86,42 @@ World::World(std::initializer_list<Shape*> objects)
 {
 }
 
-World::World(std::initializer_list<Shape*> objects, const PointLight& light)
+World::World(std::initializer_list<Shape*> objects, const PointLight& light_)
 	: objects{objects}
-	, light{light}
+	, light{light_}
+	, areaLight{std::nullopt}
 {
 }
+
+World::World(std::initializer_list<Shape*> objects, const AreaLight& light_)
+	: objects{objects}
+	, light{std::nullopt}
+	, areaLight{light_}
+{
+}
+
+
 
 std::optional<PointLight> World::getLight() const
 {
 	return this->light;
 }
 
+std::optional<AreaLight> World::getAreaLight() const
+{
+	return areaLight;
+}
+
 void World::setLight(const PointLight& light)
 {
 	this->light = std::optional<PointLight>(light);
+	this->areaLight = std::nullopt;
+}
+
+void World::setLight(const AreaLight& light)
+{
+	this->light = std::nullopt;
+	this->areaLight.emplace(light);
 }
 
 void World::addObject(Shape& shape)
@@ -239,78 +181,4 @@ std::vector<Intersection> intersectWorld(const World& world, const Ray& ray)
 	return intersections_;
 }
 
-Comps prepareComputations(Intersection intersection, Ray ray)
-{
-	Comps comps{};
-	comps.t = intersection.t;
-	comps.object = intersection.object;
-	comps.point = ray.position(comps.t);
-	comps.normalv = comps.object->normalAt(comps.point);
-	comps.eyev = -ray.direction;
 
-	if (Tuples::dot(comps.normalv, comps.eyev) < 0)
-	{
-		comps.inside = true;
-		comps.normalv = -comps.normalv;
-	}
-	else
-		comps.inside = false;
-
-	comps.overPoint = comps.point + comps.normalv * 0.01;
-
-	return comps;
-}
-
-Colors::Color shadeHit(const World& world, const Comps& comps)
-{
-
-
-	auto shadowed = isShadowed(world, comps.overPoint);
-
-	return lighting(comps.object->material
-		, world.getLight().value()
-		, comps.overPoint
-		, comps.eyev
-		, comps.normalv
-		, shadowed);
-}
-
-Colors::Color colorAt(const World& world, const Ray& ray)
-{
-
-
-	auto ix = intersectWorld(world, ray);
-	if (ix.empty()) return Colors::Color(0, 0, 0);
-	auto i = hit(ix);
-	if (i == std::nullopt) return Colors::Color(0, 0, 0);
-	auto comps = prepareComputations(i.value(), ray);
-	return shadeHit(world, comps);
-}
-
-bool isShadowed(const World& world, const Tuples::Tuple& point)
-{
-	auto v = world.getLight().value().position - point;
-	auto distance = Tuples::magnitude(v);
-	auto direction = Tuples::normalize(v);
-	Ray r{ point, direction };
-	auto intersections = intersectWorld(world, r);
-	auto h = hit(intersections);
-
-	if (h.has_value() && h.value().t < distance)
-	{
-		return true;
-	}
-
-	return false;
-}
-
-
-Comps::Comps()
-	: t{}
-	, point{}
-	, eyev{}
-	, normalv{}
-	, object{}
-	, overPoint{}
-	, inside{false}
-{ }

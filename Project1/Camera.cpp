@@ -2,6 +2,10 @@
 #include <numbers>
 #include <thread>
 
+//TODO: should probably just put these in the ImageRenderer class, but for now this is fine
+static std::atomic<int> pixelsComplete{ 0 };
+static std::atomic<bool> progressThreadRunning{ true };
+
 Camera::Camera()
 	: hSize(0)
 	, vSize(0)
@@ -44,6 +48,7 @@ float Camera::calculatePixelSize()
 }
 
 
+
 Ray Camera::rayForPixel(int px, int py) const
 {
 	float xOffset = (px + 0.5f) * this->pixelSize;
@@ -79,7 +84,6 @@ Canvas render(const Camera& camera, const World& world)
 
 
 
-
 ImageRenderer::ImageRenderer(Camera camera, World world)
 	: camera(camera)
 	, world(world)
@@ -92,6 +96,7 @@ ImageRenderer::ImageRenderer(Camera camera, World world)
 
 Canvas ImageRenderer::render()
 {
+
 
 	int rowsPerThread = 64;
 	int numThreads = camera.vSize / rowsPerThread;
@@ -106,32 +111,56 @@ Canvas ImageRenderer::render()
 		int y1 = i * rowsPerThread;
 		int x2 = camera.hSize;
 		int y2 = (i == numThreads - 1) ? camera.vSize : (i + 1) * rowsPerThread;
-		threads.emplace_back(&ImageRenderer::renderChunk, this,
-			std::ref(resultCanvas), x1, y1, x2, y2);
+		threads.emplace_back(&ImageRenderer::renderTile, this,
+			std::ref(resultCanvas), x1, y1, x2, y2, i, numThreads + 2);
+	}
+
+	int pixels = pixelsComplete.load();
+	while (pixels < camera.vSize * camera.hSize)
+	{
+		std::system("cls");
+		std::cout << "\rProgress: " << pixels << "/" << camera.vSize * camera.hSize << " tiles complete.\n";
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		pixels = pixelsComplete.load();
 	}
 
 	std::cout << "Main thread continuing..." << std::endl;
 	for (auto& t : threads) {
 		t.join();
 	}
+
 	std::cout << "All threads joined." << std::endl;
 	return resultCanvas;
 }
 
 
-void ImageRenderer::renderChunk(Canvas& canvas, int startx, int starty, int endx, int endy)
+void ImageRenderer::renderTile(Canvas& canvas, int startx, int starty, int endx, int endy, int offset, int interval)
 {
 	if (startx >= endx || starty >= endy)
 	{
 		std::clog << "bad input" << std::endl;
 		return;
 	}
+	int pixelsRendered = -offset;
 
 	for (int y{ starty }; y < endy; y++)
 		for (int x{ startx }; x < endx; x++)
 		{
+			pixelsRendered++;
+			if (pixelsRendered >= interval)
+			{
+				pixelsComplete += pixelsRendered;
+				pixelsRendered = 0;
+			}
+
 			Ray ray = camera.rayForPixel(x, y);
 			Colors::Color color = colorAt(world, ray);
 			canvas.writePixel(x, y, color);
 		}
+
+	if (pixelsRendered > 0)
+		pixelsComplete += pixelsRendered;
+	pixelsComplete += offset;
 }
+
+

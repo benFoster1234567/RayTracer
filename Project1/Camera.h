@@ -34,7 +34,7 @@ private:
 	Camera camera{};
 	Canvas canvas{};
 	World world{};
-	void renderChunk(Canvas& canvas, int startx, int starty, int endx, int endy);
+	void renderTile(Canvas& canvas, int startx, int starty, int endx, int endy, int offset, int interval);
 
 public:
 
@@ -45,3 +45,5 @@ public:
 };
 
 Canvas render(const Camera& camera, const World& world);
+
+void fxaa(Canvas& canvas);
