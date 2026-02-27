@@ -4,7 +4,6 @@
 #include "Matrix.h"
 #include "Canvas.h"
 #include "Ray.h"
-#include "Demo.h"
 #include "Camera.h"
 
 
@@ -308,20 +307,6 @@ TEST_CASE("Testing Canvas", "[Canvas]")
 		std::string expectedValue =
 			"P3\n10 2\n255\n255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 \n255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 255 204 153 \n";
 		CHECK(ppm == expectedValue);
-	}
-
-	SECTION("Running projectile demo", "[Canvas]")
-	{
-		Demo::Demo demo(
-			Tuples::Vector(-0.01f,0.0f,0.0f),
-			Tuples::Vector(0.0f,-0.1f,0.0f),
-			Tuples::Point(0.0f,1.0f,0.0f),
-			normalize(Tuples::Vector(1.0f,1.8f,0.0f)) * 11.25f,
-			900,500,
-			Colors::Color(0.0f,0.0f,0.0f)
-		);
-
-		demo.run();
 	}
 
 	
@@ -2122,40 +2107,3 @@ TEST_CASE("Soft Shadows", "[SoftShadows]")
 //	}
 //}
 
-#include "YamlParser.h"
-
-TEST_CASE("testing yaml parser", "[GayParse]")
-{
-	SECTION("testing splitLine")
-	{
-		std::string line = "                Scale: {x: 2, y: 2, z: 2} ";
-		auto strings = Parser::splitLine(line);
-		CHECK(std::get<0>(strings) == "Scale");
-		CHECK(std::get<1>(strings) == " {x: 2, y: 2, z: 2} ");
-		CHECK(std::get<2>(strings) == 16);
-	}
-
-	SECTION("Testing splitline with float")
-	{
-		std::string line = "                Ambient: 0.1 ";
-
-		auto strings = Parser::splitLine(line);
-
-		CHECK(std::get<0>(strings) == "Ambient");
-		CHECK(std::get<1>(strings) == " 0.1 ");
-		CHECK(std::get<2>(strings) == 16);
-
-	}
-
-	SECTION("Testing splitline with only key")
-	{
-		std::string line = "    Objects: ";
-
-		auto strings = Parser::splitLine(line);
-		
-		CHECK(std::get<0>(strings) == "Objects");
-		CHECK(std::get<1>(strings) == " ");
-		CHECK(std::get<2>(strings) == 4);
-
-	}
-}

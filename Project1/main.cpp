@@ -1,5 +1,5 @@
 // main.cpp
-//#define RUN_TESTS
+#define RUN_TESTS
 #ifdef RUN_TESTS
 #define CATCH_CONFIG_MAIN
 #include "catch_amalgamated.hpp"

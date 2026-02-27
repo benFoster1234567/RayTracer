@@ -21,12 +21,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="catch_amalgamated.hpp">
-      <Filter>External</Filter>
-    </ClInclude>
-    <ClInclude Include="Demo.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Tuple.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -51,19 +45,13 @@
     <ClInclude Include="Material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="YamlParser.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="catch_amalgamated.hpp">
+      <Filter>External</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="catch_amalgamated.cpp">
-      <Filter>External</Filter>
-    </ClCompile>
     <ClCompile Include="Tests.cpp">
       <Filter>Tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Demo.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Tuple.cpp">
       <Filter>Source Files</Filter>
@@ -95,8 +83,8 @@
     <ClCompile Include="Triangle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="YamlParser.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="catch_amalgamated.cpp">
+      <Filter>External</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
