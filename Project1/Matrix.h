@@ -11,6 +11,7 @@
 class MatrixBase
 {
 protected:
+	std::vector<float> matrixElements;
 	size_t m{};//rows
 	size_t n{};//cols
 	std::vector<float> matrixElements;
@@ -83,8 +84,8 @@ public:
 		: MatrixBase(3, 3)
 	{
 		matrixElements = { m00,m01,m02,
-						   m10,m11,m12,
-						   m20,m21,m22 };
+						m10,m11,m12,
+						m20,m21,m22 };
 	}
 
 	inline bool operator==(const Matrix3& other)  const

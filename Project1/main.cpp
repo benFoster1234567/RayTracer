@@ -244,7 +244,7 @@ void poolBallsScene()
 }
 
 void desertDuskScene()
-{
+	{
 	Camera camera(720, 720, 1.0f);
 	camera.transform = Matrix4::viewTransform(
 		Tuples::Point(-4, 2.5f, -8),
@@ -293,12 +293,12 @@ void desertDuskScene()
 	Sphere pebble1 = makeDune(Colors::Color(0.7f, 0.55f, 0.5f), -0.8f, 3.5f, 0.18f, 0.25f, 0.0f);
 	Sphere pebble2 = makeDune(Colors::Color(0.75f, 0.58f, 0.48f), 0.4f, 4.2f, 0.14f, 0.25f, 0.0f);
 	Sphere pebble3 = makeDune(Colors::Color(0.68f, 0.52f, 0.44f), -1.8f, 5.0f, 0.12f, 0.25f, 0.0f);
-
+		
 	World world({ &floor, &boulder, &rock1, &rock2, &obsidian, &pebble1, &pebble2, &pebble3 }, light);
 	ImageRenderer renderer(camera, world);
 	renderer.render().toFile("desertDusk");
 	std::cout << "Rendered desertDusk\n";
-}
+	}
 
 void neonShowroomScene()
 {
@@ -354,7 +354,7 @@ void neonShowroomScene()
 	Sphere pink = makeShowpiece(Colors::Color(0.95f, 0.1f, 0.6f), 1.5f, 2.5f, 0.25f, 300, 0.4f);
 	
 	Sphere violet = makeShowpiece(Colors::Color(0.4f, 0.0f, 0.9f), 0.5f, 3.2f, 0.18f, 250, 0.35f);
-
+	
 	World world({ &floor, &chrome, &neonRed, &neonCyan, &yellow, &pink, &violet }, light);
 	ImageRenderer renderer(camera, world);
 	renderer.render().toFile("neonShowroom");

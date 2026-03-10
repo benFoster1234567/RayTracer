@@ -103,7 +103,7 @@ inline bool operator==(const Sphere& a, const Sphere& b)
 
 struct Intersection
 {
-
+	
 	float t{};
 
 	Shape* object;
