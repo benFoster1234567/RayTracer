@@ -132,10 +132,8 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Canvas.h" />
-    <ClInclude Include="catch_amalgamated.hpp" />
     <ClInclude Include="Color.h" />
     <ClInclude Include="Common.h" />
-    <ClInclude Include="Demo.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Ray.h" />
@@ -145,8 +143,6 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Canvas.cpp" />
-    <ClCompile Include="catch_amalgamated.cpp" />
-    <ClCompile Include="Demo.cpp" />
     <ClCompile Include="Lighting.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -160,7 +156,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.txt" />
-    <Text Include="YamlFormat.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
