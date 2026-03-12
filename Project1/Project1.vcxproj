@@ -142,7 +142,6 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Canvas.cpp" />
-    <ClCompile Include="catch_amalgamated.cpp" />
     <ClCompile Include="Lighting.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
