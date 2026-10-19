@@ -9,12 +9,12 @@ Ray::Ray(Tuples::Tuple origin, Tuples::Tuple direction)
 	: origin{origin}, direction{direction}
 {}
 
-Sphere::Sphere()
-	: position{Tuples::Point(10,10,0)}, radius(1.0f)
-{}
-
-Sphere::Sphere(Tuples::Tuple position, float radius)
-{}
+//Sphere::Sphere()
+//	: position{Tuples::Point(10,10,0)}, radius(1.0f)
+//{}
+//
+//Sphere::Sphere(Tuples::Tuple position, float radius)
+//{}
 
 std::vector<Intersection> intersections(std::initializer_list<Intersection> list)
 {
@@ -37,8 +37,6 @@ Ray transformRay(const Ray& ray, const Matrix4& matrix)
 	Ray newRay{ matrix * ray.origin, matrix * ray.direction };
 
 	return newRay;
-
-	return std::vector<Intersection>{Intersection{ t1,&sphere }, Intersection{ t2, &sphere }};
 }
 
 std::vector<Intersection> intersect(Shape& shape, const Ray& ray)

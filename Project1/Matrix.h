@@ -14,7 +14,6 @@ protected:
 	std::vector<float> matrixElements;
 	size_t m{};//rows
 	size_t n{};//cols
-	std::vector<float> matrixElements;
 
 	inline MatrixBase(size_t rows, size_t cols)
 		: matrixElements(rows* cols, 0.0f), m(rows), n(cols)

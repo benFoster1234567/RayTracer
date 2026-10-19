@@ -17,7 +17,6 @@
 #include "Color.h"
 #include "Matrix.h"
 #include "Canvas.h"
-#include "Demo.h"
 #include "Ray.h"
 #include "Camera.h"
 
